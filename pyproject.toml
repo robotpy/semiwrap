@@ -9,7 +9,7 @@ description = "Semi-automated tool to wrap C++ code for use by python"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "BSD-3-Clause"
-license-files = ["LICENSE.txt", "src/semiwrap/pybind11/LICENSE"]
+license-files = ["LICENSE.txt", "LICENSE-pybind11.txt"]
 authors = [
     {name = "Dustin Spicuzza", email = "robotpy@googlegroups.com"},
 ]
@@ -32,7 +32,6 @@ dependencies = [
     "typing-extensions",
     "pyyaml >= 5.1",
     "pybind11-stubgen ~= 2.5.1",
-    "distro; platform_system == 'Linux'",
 ]
 
 [project.entry-points.hatch]
@@ -60,7 +59,7 @@ exclude = [
 ]
 [tool.hatch.build.targets.sdist.force-include]
 "./src/semiwrap/pybind11/include" = "./semiwrap/pybind11/include"
-
+"./src/semiwrap/pybind11/LICENSE" = "./LICENSE-pybind11.txt"
 
 [tool.black]
 target-version = ["py38"]
