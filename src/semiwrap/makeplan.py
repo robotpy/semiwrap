@@ -42,6 +42,20 @@ class CppMacroValue:
 
 
 @dataclasses.dataclass(frozen=True)
+class CompilerInfo:
+    """
+    Represents N arguments to be injected:
+
+    - argument_syntax: gcc, msvc, or other
+    - c++ standard
+    - actual arguments to run the compiler
+
+    """
+
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
 class LocalDependency:
     name: str
     include_paths: T.Tuple[pathlib.Path, ...]
@@ -87,6 +101,7 @@ class BuildTarget:
             BuildTarget,
             BuildTargetOutput,
             CppMacroValue,
+            CompilerInfo,
         ],
         ...,
     ]
@@ -539,6 +554,7 @@ class _BuildPlanner:
             header2dat_args.append(all_type_casters)
             header2dat_args.append(OutputFile(f"{yml}.dat"))
             header2dat_args.append(Depfile(f"{yml}.d"))
+            header2dat_args.append(CompilerInfo())
 
             datfile = BuildTarget(
                 command="header2dat", args=tuple(header2dat_args), install_path=None
