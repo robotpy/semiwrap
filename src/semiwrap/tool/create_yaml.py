@@ -4,7 +4,7 @@ import typing as T
 
 from ..autowrap.generator_data import MissingReporter
 from ..cmd.header2dat import make_argparser, generate_wrapper
-from ..makeplan import InputFile, makeplan, BuildTarget
+from ..makeplan import InputFile, makeplan, BuildTarget, CompilerInfo
 
 
 class GenCreator:
@@ -63,6 +63,8 @@ class GenCreator:
                     argv.append(str(arg.path.absolute()))
                 elif isinstance(arg, pathlib.Path):
                     argv.append(str(arg.absolute()))
+                elif isinstance(arg, CompilerInfo):
+                    argv += ["pcpp", "ignored", "ignored"]
                 else:
                     # anything else shouldn't matter
                     argv.append("ignored")
@@ -80,8 +82,10 @@ class GenCreator:
                 dst_dat=None,
                 dst_depfile=None,
                 include_paths=sargs.include_paths,
+                compiler_flavor="pcpp",
+                compiler_args=[],
                 casters={},
-                pp_defines=sargs.pp_defines,
+                pp_defines=[],
                 missing_reporter=reporter,
                 report_only=True,
             )

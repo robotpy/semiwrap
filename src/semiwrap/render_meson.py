@@ -18,6 +18,7 @@ from .makeplan import (
     ExtensionModule,
     LocalDependency,
     CppMacroValue,
+    CompilerInfo,
     makeplan,
 )
 from .util import maybe_write_file, relpath_walk_up
@@ -48,7 +49,13 @@ def _make_string(s: str):
 
 
 VarTypes = T.Union[
-    InputFile, OutputFile, BuildTarget, ExtensionModule, LocalDependency, CppMacroValue
+    InputFile,
+    OutputFile,
+    BuildTarget,
+    ExtensionModule,
+    LocalDependency,
+    CppMacroValue,
+    CompilerInfo,
 ]
 
 
@@ -85,6 +92,8 @@ class VarCache:
             elif isinstance(item, CppMacroValue):
                 name = item.name
                 var = f"_sw_cpp_var_{name}"
+            elif isinstance(item, CompilerInfo):
+                name = var = "_sw_compiler_info"
             else:
                 assert False
 
@@ -123,7 +132,7 @@ def _render_build_target(r: RenderBuffer, vc: VarCache, bt: BuildTarget):
         elif isinstance(arg, ExtensionModule):
             cmd.append(f"'@INPUT{len(tinput)}@'")
             tinput.append(vc.getvar(arg))
-        elif isinstance(arg, CppMacroValue):
+        elif isinstance(arg, (CppMacroValue, CompilerInfo)):
             cmd.append(vc.getvar(arg))
         else:
             assert False, f"unexpected {arg!r} in {bt}"
@@ -289,6 +298,12 @@ def render_meson(
         _sw_cmd_dat2tmplhpp = [sw_py, '-m', 'semiwrap.cmd.dat2tmplhpp']
         _sw_cmd_gen_modinit_hpp = [sw_py, '-m', 'semiwrap.cmd.gen_modinit_hpp']
         _sw_cmd_make_pyi = [sw_py, '-m', 'semiwrap.cmd.make_pyi']
+
+        _sw_compiler_info = [
+            meson.get_compiler('cpp').get_argument_syntax(),
+            get_option('cpp_std'),
+            meson.get_compiler('cpp').cmd_array()
+        ]
 
         #
         # internal custom targets for generating wrappers

@@ -4,7 +4,6 @@ can turn into other things
 """
 
 import argparse
-import os
 import pathlib
 import pickle
 import typing
@@ -17,17 +16,6 @@ from ..autowrap.generator_data import GeneratorData, MissingReporter
 from ..casters import CastersData
 from ..config.autowrap_yml import AutowrapConfigYaml
 
-# TODO: eventually provide native preprocessor by default and allow it
-#       to be enabled/disabled per-file just in case
-# TODO: should this also be a command line option?
-if os.getenv("SEMIWRAP_PP_GCC") == "1":
-    # GCC preprocessor can be 10x faster than pcpp for very complex files
-    def make_preprocessor(*args, **kwargs):
-        return preprocessor.make_gcc_preprocessor(print_cmd=False, *args, **kwargs)
-
-else:
-    make_preprocessor = preprocessor.make_pcpp_preprocessor
-
 
 def generate_wrapper(
     *,
@@ -36,6 +24,8 @@ def generate_wrapper(
     src_h: pathlib.Path,
     src_h_root: pathlib.Path,
     include_paths: typing.List[pathlib.Path],
+    compiler_flavor: str,
+    compiler_args: typing.List[str],
     pp_defines: typing.List[str],
     casters: CastersData,
     dst_dat: typing.Optional[pathlib.Path],
@@ -58,6 +48,19 @@ def generate_wrapper(
     if dst_depfile is not None:
         assert dst_dat is not None
         deptarget = [str(dst_dat)]
+
+    if compiler_flavor == "gcc":
+
+        def make_preprocessor(*args, **kwargs):
+            return preprocessor.make_gcc_preprocessor(
+                print_cmd=False, gcc_args=compiler_args, *args, **kwargs
+            )
+
+    # elif compiler_flavor == "msvc":
+    #   .. cxxheaderparser's msvc support doesn't generate a depfile, so it's not usable
+    #      without breaking incremental build
+    else:
+        make_preprocessor = preprocessor.make_pcpp_preprocessor
 
     popts = ParserOptions(
         preprocessor=make_preprocessor(
@@ -99,7 +102,6 @@ def generate_wrapper(
 def make_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-I", "--include-paths", action="append", default=[])
-    parser.add_argument("-D", "--pp-defines", action="append", default=[])
     parser.add_argument("--cpp")
     parser.add_argument("name")
     parser.add_argument("src_yml", type=pathlib.Path)
@@ -108,6 +110,9 @@ def make_argparser() -> argparse.ArgumentParser:
     parser.add_argument("in_casters", type=pathlib.Path)
     parser.add_argument("dst_dat", type=pathlib.Path)
     parser.add_argument("dst_depfile", type=pathlib.Path)
+    parser.add_argument("compiler_flavor")
+    parser.add_argument("cpp_std")
+    parser.add_argument("compiler_args", nargs="+")
     return parser
 
 
@@ -118,8 +123,16 @@ def main():
     with open(args.in_casters, "rb") as fp:
         casters = pickle.load(fp)
 
-    if args.cpp:
-        args.pp_defines.append(f"__cplusplus {args.cpp}")
+    pp_defines = []
+    compiler_args = args.compiler_args
+
+    if args.compiler_flavor == "gcc":
+        compiler_args.append(f"-std={args.cpp_std}")
+    else:
+        compiler_args.append(f"/std:{args.cpp_std}")
+
+    if args.cpp and args.compiler_flavor != "gcc":
+        pp_defines.append(f"__cplusplus {args.cpp}")
 
     generate_wrapper(
         name=args.name,
@@ -129,8 +142,10 @@ def main():
         dst_dat=args.dst_dat,
         dst_depfile=args.dst_depfile,
         include_paths=args.include_paths,
+        compiler_flavor=args.compiler_flavor,
+        compiler_args=compiler_args,
         casters=casters,
-        pp_defines=args.pp_defines,
+        pp_defines=pp_defines,
         missing_reporter=MissingReporter(),
         report_only=False,
     )
