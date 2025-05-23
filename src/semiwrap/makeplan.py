@@ -295,6 +295,8 @@ class _BuildPlanner:
             self.project_root / pathlib.PurePosixPath(inc) for inc in extension.includes
         ]
         search_path.extend(includes)
+        for inc in includes:
+            include_directories_uniq[inc] = True
 
         # Search the package path last
         search_path.append(self.pyproject.package_root / package_path)
