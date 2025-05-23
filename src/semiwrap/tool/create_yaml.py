@@ -1,5 +1,7 @@
 import os
 import pathlib
+import sys
+import traceback
 import typing as T
 
 from ..autowrap.generator_data import MissingReporter
@@ -18,10 +20,44 @@ class GenCreator:
         parser.add_argument(
             "--write", help="Write to files if they don't exist", action="store_true"
         )
+        parser.add_argument(
+            "-v", "--verbose", help="Show full traceback", action="store_true"
+        )
 
         return parser
 
     def run(self, args):
+        try:
+            self._run(args)
+        except Exception as e:
+            # Reading the stack trace is annoying, most of the time the exception content
+            # is enough to figure out what you did wrong.
+            if args.verbose:
+                raise
+
+            msg = [
+                "ERROR: exception occurred when generating YAML from `pyproject.toml` config\n\n",
+            ]
+
+            msg += traceback.format_exception_only(type(e), e)
+            cause = e.__context__
+            while cause is not None:
+
+                el = traceback.format_exception_only(type(cause), cause)
+                el[0] = f"- caused by {el[0]}"
+                msg += el
+
+                if cause.__suppress_context__:
+                    break
+
+                cause = cause.__context__
+
+            msg.append("\nUse -v/--verbose option for stacktrace")
+
+            print("".join(msg), file=sys.stderr)
+            sys.exit(1)
+
+    def _run(self, args):
         project_root = pathlib.Path.cwd()
 
         # Problem: if another hatchling plugin sets PKG_CONFIG_PATH to include a .pc

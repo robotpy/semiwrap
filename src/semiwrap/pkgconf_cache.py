@@ -17,7 +17,11 @@ class CacheEntry:
     def _get_pkgconf_data(self, *args) -> str:
         r = pkgconf.run_pkgconf(self.name, *args, capture_output=True)
         if r.returncode != 0:
-            raise KeyError(f"Package '{self.name}' is not installed")
+            msg = [f"Package '{self.name}' is not installed"]
+            if r.stderr:
+                msg.append("")
+                msg.append(f"> " + "\n> ".join(r.stderr.decode("utf-8").splitlines()))
+            raise RuntimeError("\n".join(msg))
 
         return r.stdout.decode("utf-8").strip()
 
