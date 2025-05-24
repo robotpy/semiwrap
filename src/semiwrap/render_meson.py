@@ -197,6 +197,13 @@ def _render_module_stage0(
     r.writeln(f"{m.name}_deps = [declare_dependency(")
     with r.indent():
 
+        if m.defines:
+            r.writeln("compile_args: [")
+            with r.indent():
+                for dname, dvalue in m.defines:
+                    r.writeln(_make_string(f"-D{dname}={dvalue}"))
+            r.writeln("],")
+
         if m.sources:
             r.writeln("sources: [")
             with r.indent():

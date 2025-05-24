@@ -110,6 +110,9 @@ class GenCreator:
 
             reporter = MissingReporter()
 
+            if sargs.cpp:
+                sargs.defines.append(f"__cplusplus {sargs.cpp}")
+
             generate_wrapper(
                 name=sargs.name,
                 src_yml=sargs.src_yml,
@@ -121,7 +124,7 @@ class GenCreator:
                 compiler_flavor="pcpp",
                 compiler_args=[],
                 casters={},
-                pp_defines=[],
+                pp_defines=sargs.defines,
                 missing_reporter=reporter,
                 report_only=True,
             )

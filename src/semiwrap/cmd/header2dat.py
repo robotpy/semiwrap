@@ -102,6 +102,7 @@ def generate_wrapper(
 def make_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-I", "--include-paths", action="append", default=[])
+    parser.add_argument("-D", "--defines", action="append", default=[])
     parser.add_argument("--cpp")
     parser.add_argument("name")
     parser.add_argument("src_yml", type=pathlib.Path)
@@ -123,7 +124,6 @@ def main():
     with open(args.in_casters, "rb") as fp:
         casters = pickle.load(fp)
 
-    pp_defines = []
     compiler_args = args.compiler_args
 
     if args.compiler_flavor == "gcc":
@@ -132,7 +132,7 @@ def main():
         compiler_args.append(f"/std:{args.cpp_std}")
 
     if args.cpp and args.compiler_flavor != "gcc":
-        pp_defines.append(f"__cplusplus {args.cpp}")
+        args.defines.append(f"__cplusplus {args.cpp}")
 
     generate_wrapper(
         name=args.name,
@@ -145,7 +145,7 @@ def main():
         compiler_flavor=args.compiler_flavor,
         compiler_args=compiler_args,
         casters=casters,
-        pp_defines=pp_defines,
+        pp_defines=args.defines,
         missing_reporter=MissingReporter(),
         report_only=False,
     )

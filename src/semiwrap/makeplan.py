@@ -125,6 +125,8 @@ class ExtensionModule:
     # extra include directories that won't be found via depends
     include_directories: T.Tuple[pathlib.Path, ...]
 
+    defines: T.Tuple[T.Tuple[str, T.Union[str, int]], ...]
+
     # Install path is always relative to py.get_install_dir(pure: false)
     install_path: pathlib.Path
 
@@ -407,6 +409,7 @@ class _BuildPlanner:
             sources=tuple(module_sources),
             depends=(local_dep,),
             include_directories=tuple(),
+            defines=tuple(extension.defines.items()),
             install_path=package_path,
         )
         yield modobj
@@ -525,6 +528,11 @@ class _BuildPlanner:
         datfiles: T.List[BuildTarget] = []
         module_sources: T.List[BuildTarget] = []
         subpackages: T.Set[str] = set()
+        define_args = []
+
+        if extension.defines:
+            for dname, dvalue in extension.defines.items():
+                define_args += ["-D", f"{dname} {dvalue}"]
 
         for yml, hdr in self.pyproject.get_extension_headers(extension):
             yml_input = InputFile(yaml_path / f"{yml}.yml")
@@ -543,6 +551,8 @@ class _BuildPlanner:
             header2dat_args = []
             for inc in include_directories_uniq:
                 header2dat_args += ["-I", inc]
+
+            header2dat_args.extend(define_args)
 
             # https://github.com/pkgconf/pkgconf/issues/391
             header2dat_args += ["-I", sysconfig.get_path("include")]
