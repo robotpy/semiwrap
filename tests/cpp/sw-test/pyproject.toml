@@ -26,12 +26,16 @@ wraps = ["swtest_base__module"]
 yaml_path = "semiwrap/ft"
 includes = ["src/swtest/ft/include"]
 
+[tool.semiwrap.extension_modules."swtest.ft._ft".defines]
+SOMETHING_DEFINED = "1"
+
 [tool.semiwrap.extension_modules."swtest.ft._ft".headers]
 abstract = "abstract.h"
 base_qualname = "base_qualname.h"
 base_qualname_hidden = "base_qualname_hidden.h"
 buffers = "buffers.h"
 custom_type_caster = "custom_type_caster.h"
+define = "define.h"
 defaults = "defaults.h"
 docstrings = "docstrings.h"
 docstrings_append = "docstrings_append.h"
