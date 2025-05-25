@@ -70,6 +70,7 @@ class HeaderScanner:
             return False
 
         all_present = set()
+        all_missing = set()
 
         if not args.all:
             for ccfg in project.export_type_casters.values():
@@ -89,11 +90,17 @@ class HeaderScanner:
 
                 if not files:
                     continue
+
+                present = set()
                 for incdir in search_paths[name]:
                     incdir = Path(incdir)
+
                     for f in files:
                         if (incdir / f).exists():
+                            present.add(f)
                             all_present.add(incdir / f)
+
+                all_missing |= set(files) - present
 
         all_search_paths = set()
         for ps in search_paths.values():
@@ -146,3 +153,8 @@ class HeaderScanner:
                 else:
                     print(f'{base} = "{f.as_posix()}"')
             print()
+
+        if all_missing:
+            print()
+            for f in sorted(all_missing):
+                print(f"# missing: {f}")
