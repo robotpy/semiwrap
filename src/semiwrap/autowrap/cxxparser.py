@@ -703,6 +703,11 @@ class AutowrapVisitor:
                         f"{cls_name}: cannot specify template_params for non-template class"
                     )
 
+                if class_data.template_inline_code:
+                    raise ValueError(
+                        f"{cls_name}: template_inline_code specified for non-template class"
+                    )
+
         #
         # Other stuff
         #
