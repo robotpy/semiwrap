@@ -30,6 +30,8 @@ def test_nested_template():
     i = ft.TOuter.Inner()
     assert type(i.t) == int
 
+    assert repr(i) == "TOuter.Inner()"
+
 
 def test_numeric():
     """template/numeric.h"""

@@ -8,6 +8,16 @@ classes:
   Outer::Inner:
     attributes:
       t:
+    inline_code: |
+      ;
+      {
+        std::string clsNameCopy = clsName;
+
+        cls_Inner
+          .def("__repr__", [clsNameCopy](const Inner &self) {
+            return clsNameCopy + ".Inner()";
+          });
+      }
 
 templates:
   TOuter:
