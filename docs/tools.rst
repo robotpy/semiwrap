@@ -39,6 +39,10 @@ The list accepts glob patterns supported by the fnmatch module.
 To output the scanned headers to a list of ignored files, you can use the
 ``--as-ignore`` option.
 
+It can be useful to use this command in CI to detect if you forgot to wrap
+headers. Add the ``--check`` argument and it will exit with an error code if
+any headers were printed out.
+
 .. _create_yaml:
 
 create-yaml

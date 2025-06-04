@@ -14,7 +14,7 @@ class HeaderScanner:
     def add_subparser(cls, parent_parser, subparsers):
         parser = subparsers.add_parser(
             "scan-headers",
-            help="Generate a list of headers in TOML form",
+            help="Generate a list of wrappable headers in TOML form",
             parents=[parent_parser],
         )
         parser.add_argument("--all", default=False, action="store_true")
@@ -23,6 +23,11 @@ class HeaderScanner:
             default=False,
             action="store_true",
             help="Emit scan_headers_ignore instead",
+        )
+        parser.add_argument(
+            "--check",
+            action="store_true",
+            help="Exit with error code if any headers printed out",
         )
         return parser
 
@@ -71,6 +76,8 @@ class HeaderScanner:
 
         all_present = set()
         all_missing = set()
+
+        has_difference = False
 
         if not args.all:
             for ccfg in project.export_type_casters.values():
@@ -128,6 +135,7 @@ class HeaderScanner:
             if not files:
                 continue
 
+            has_difference = True
             files.sort()
 
             if args.as_ignore:
@@ -155,6 +163,10 @@ class HeaderScanner:
             print()
 
         if all_missing:
+            has_difference = True
             print()
             for f in sorted(all_missing):
                 print(f"# missing: {f}")
+
+        if args.check:
+            return not has_difference
