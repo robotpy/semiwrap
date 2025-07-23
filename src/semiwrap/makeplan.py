@@ -584,6 +584,9 @@ class _BuildPlanner:
             yield cppfile
 
             # Detect subpackages
+            if ayml.defaults.subpackage:
+                subpackages.add(ayml.defaults.subpackage)
+
             for f in ayml.functions.values():
                 if f.ignore:
                     continue

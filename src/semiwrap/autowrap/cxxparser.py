@@ -1778,9 +1778,18 @@ class AutowrapVisitor:
         return None
 
     def _get_module_var(self, data: HasSubpackage) -> str:
-        if data.subpackage:
-            var = f"pkg_{data.subpackage.replace('.', '_')}"
-            self.hctx.subpackages[data.subpackage] = var
+        subpackage = data.subpackage
+
+        # Support setting a default subpackage
+        # - Don't do it on classes with templates because the instantiation controls
+        #   the subpackage, not the class
+        if not isinstance(data, ClassData) or not data.template_params:
+            if subpackage is None:
+                subpackage = self.user_cfg.defaults.subpackage
+
+        if subpackage:
+            var = f"pkg_{subpackage.replace('.', '_')}"
+            self.hctx.subpackages[subpackage] = var
             return var
 
         return "m"
