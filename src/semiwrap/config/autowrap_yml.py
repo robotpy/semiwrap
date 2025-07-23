@@ -521,6 +521,9 @@ class Defaults:
     #: If False and default ignore is True, don't report missing items
     report_ignored_missing: bool = True
 
+    #: All items will be added to this subpackage unless specified otherwise
+    subpackage: Optional[str] = None
+
 
 @dataclasses.dataclass(frozen=True)
 class AutowrapConfigYaml:
