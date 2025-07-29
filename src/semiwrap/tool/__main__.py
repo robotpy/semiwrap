@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from .build_dep import BuildDep
-from .create_yaml import GenCreator
+from .update_yaml import YamlUpdater
 from .create_imports import ImportCreator, UpdateInit
 from .scan_headers import HeaderScanner
 
@@ -15,7 +15,7 @@ def main():
 
     for cls in (
         BuildDep,
-        GenCreator,
+        YamlUpdater,
         HeaderScanner,
         ImportCreator,
         UpdateInit,

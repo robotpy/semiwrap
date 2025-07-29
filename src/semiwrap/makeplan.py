@@ -541,7 +541,7 @@ class _BuildPlanner:
                 ayml = AutowrapConfigYaml.from_file(self.project_root / yml_input.path)
             except FileNotFoundError:
                 if not self.missing_yaml_ok:
-                    msg = f"{self.project_root / yml_input.path}: use `python3 -m semiwrap create-yaml --write` to generate"
+                    msg = f"{self.project_root / yml_input.path}: use `python3 -m semiwrap update-yaml` to generate"
                     raise FileNotFoundError(msg) from None
                 ayml = AutowrapConfigYaml()
 

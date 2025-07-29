@@ -45,7 +45,7 @@ def generate_wrapper(
 ):
 
     try:
-        # semiwrap requires user to create yaml files first using create-yaml
+        # semiwrap requires user to create yaml files first using update-yaml
         data = AutowrapConfigYaml.from_file(src_yml)
     except FileNotFoundError:
         if not report_only:

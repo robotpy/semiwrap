@@ -29,6 +29,8 @@ dependencies = [
     "tomli",
     "tomli_w",
     "toposort",
+    "dictdiffer",
+    "ruamel.yaml",
     "typing-extensions",
     "pyyaml >= 5.1",
     "pybind11-stubgen ~= 2.5.1",

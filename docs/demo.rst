@@ -107,7 +107,7 @@ similar to this:
 .. code-block:: text
 
    semiwrap.makeplan.PlanError: swdemo._demo failed
-   - caused by FileNotFoundError: semiwrap/demo.yml: use `python3 -m semiwrap create-yaml --write` to generate
+   - caused by FileNotFoundError: semiwrap/demo.yml: use `python3 -m semiwrap update-yaml --write` to generate
 
 ``semiwrap`` requires all headers listed in ``tool.semiwrap.extension_modules."PACKAGE.NAME".headers``
 to have an associated YAML file in the semiwrap directory. You can create them manually,
@@ -115,7 +115,7 @@ or just use the following command to autogenerate it.
 
 .. code-block:: sh
 
-   python3 -m semiwrap create-yaml --write
+   python3 -m semiwrap update-yaml --write
 
 Now there will be a semiwrap generation configuration YAML file at ``semiwrap/demo.yml``:
 
