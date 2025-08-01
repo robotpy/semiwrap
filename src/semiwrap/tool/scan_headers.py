@@ -1,5 +1,6 @@
 import fnmatch
 import glob
+import pathlib
 from itertools import chain
 from os.path import join, relpath
 from pathlib import Path, PurePosixPath
@@ -28,6 +29,12 @@ class HeaderScanner:
             "--check",
             action="store_true",
             help="Exit with error code if any headers printed out",
+        )
+        parser.add_argument(
+            "--pyproject_toml",
+            type=pathlib.Path,
+            help="The location of the pyproject toml configuration file. By default it will attempt to find it in the current working directory",
+            default=pathlib.Path("./pyproject.toml"),
         )
         return parser
 
@@ -60,7 +67,7 @@ class HeaderScanner:
         return search_paths
 
     def run(self, args):
-        pyproject = PyProject()
+        pyproject = PyProject(args.pyproject_toml)
         project = pyproject.project
 
         # Get the search path for each extension module

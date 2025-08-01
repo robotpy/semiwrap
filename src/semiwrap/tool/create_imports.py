@@ -4,6 +4,7 @@ import subprocess
 import sys
 import typing
 import types
+import pathlib
 
 from ..pyproject import PyProject
 
@@ -21,6 +22,11 @@ class ImportCreator:
         parser.add_argument(
             "--write", "-w", action="store_true", help="Modify existing __init__.py"
         )
+        parser.add_argument(
+            "--override_output_file",
+            type=pathlib.Path,
+            help="If specified, will write the updated file to this location instead of making the change in place. Only used if --write is set.",
+        )
         return parser
 
     def _rel(self, base: str, compiled: str) -> str:
@@ -31,9 +37,15 @@ class ImportCreator:
         return f".{'.'.join(elems)}"
 
     def run(self, args):
-        self.create(args.base, args.compiled, args.write)
+        self.create(args.base, args.compiled, args.write, args.override_output_file)
 
-    def create(self, base: str, compiled: typing.Optional[str], write: bool):
+    def create(
+        self,
+        base: str,
+        compiled: typing.Optional[str],
+        write: bool,
+        override_output_file: typing.Optional[pathlib.Path],
+    ):
         # Runtime Dependency Check
         try:
             import black
@@ -103,7 +115,10 @@ class ImportCreator:
             else:
                 fcontent = fcontent[:startidx] + content + fcontent[idx + 1 :]
 
-            if fcontent != orig_content:
+            # Always write the file if override_output_file is specified.
+            # Othewise only write if the contents have changed.
+            if override_output_file or fcontent != orig_content:
+                fname = override_output_file or fname
                 with open(fname, "w") as fp:
                     fp.write(fcontent)
                 print("MOD", base)
