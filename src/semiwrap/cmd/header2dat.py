@@ -11,10 +11,21 @@ import typing
 from cxxheaderparser.options import ParserOptions
 from cxxheaderparser import preprocessor
 
+import yaml
+
 from ..autowrap.cxxparser import parse_header
-from ..autowrap.generator_data import GeneratorData, MissingReporter
+from ..autowrap.generator_data import GeneratorData
 from ..casters import CastersData
 from ..config.autowrap_yml import AutowrapConfigYaml
+
+
+def format_missing(report) -> str:
+    return (
+        yaml.safe_dump(report, sort_keys=False)
+        .replace(" {}", "")
+        .replace("? ''\n          :", '"":')
+        .replace("? ''\n      :", '"":')
+    )
 
 
 def generate_wrapper(
@@ -30,7 +41,6 @@ def generate_wrapper(
     casters: CastersData,
     dst_dat: typing.Optional[pathlib.Path],
     dst_depfile: typing.Optional[pathlib.Path],
-    missing_reporter: MissingReporter,
     report_only: bool,
 ):
 
@@ -87,16 +97,17 @@ def generate_wrapper(
     except Exception as e:
         raise ValueError(f"processing {src_h}") from e
 
-    gendata.report_missing(src_yml, missing_reporter)
+    missing = gendata.get_missing()
 
-    if not report_only and missing_reporter and not data.defaults.ignore:
+    if not report_only and missing and not data.defaults.ignore:
         print("WARNING: some items not in", src_yml, "for", src_h)
-        for name, contents in missing_reporter.as_yaml():
-            print(contents)
+        print(format_missing(missing))
 
     if dst_dat is not None:
         with open(dst_dat, "wb") as fp:
             pickle.dump(hctx, fp)
+
+    return missing
 
 
 def make_argparser() -> argparse.ArgumentParser:
@@ -146,7 +157,6 @@ def main():
         compiler_args=compiler_args,
         casters=casters,
         pp_defines=args.defines,
-        missing_reporter=MissingReporter(),
         report_only=False,
     )
 

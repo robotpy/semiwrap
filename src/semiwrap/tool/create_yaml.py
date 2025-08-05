@@ -4,8 +4,7 @@ import sys
 import traceback
 import typing as T
 
-from ..autowrap.generator_data import MissingReporter
-from ..cmd.header2dat import make_argparser, generate_wrapper
+from ..cmd.header2dat import make_argparser, generate_wrapper, format_missing
 from ..makeplan import InputFile, makeplan, BuildTarget, CompilerInfo
 
 
@@ -108,12 +107,10 @@ class GenCreator:
             sparser = make_argparser()
             sargs = sparser.parse_args(argv)
 
-            reporter = MissingReporter()
-
             if sargs.cpp:
                 sargs.defines.append(f"__cplusplus {sargs.cpp}")
 
-            generate_wrapper(
+            missing = generate_wrapper(
                 name=sargs.name,
                 src_yml=sargs.src_yml,
                 src_h=sargs.src_h,
@@ -125,22 +122,21 @@ class GenCreator:
                 compiler_args=[],
                 casters={},
                 pp_defines=sargs.defines,
-                missing_reporter=reporter,
                 report_only=True,
             )
 
-            if reporter:
-                for name, report in reporter.as_yaml():
-                    report = f"---\n\n{report}"
+            if missing:
+                report = f"---\n\n" + format_missing(missing)
+                name = sargs.src_yml
 
-                    if args.write:
-                        if not name.exists():
-                            name.parent.mkdir(parents=True, exist_ok=True)
-                            print("Writing", name)
-                            with open(name, "w") as fp:
-                                fp.write(report)
-                        else:
-                            print(name, "already exists!")
+                if args.write:
+                    if not name.exists():
+                        name.parent.mkdir(parents=True, exist_ok=True)
+                        print("Writing", name)
+                        with open(name, "w") as fp:
+                            fp.write(report)
+                    else:
+                        print(name, "already exists!")
 
-                    print("===", name, "===")
-                    print(report)
+                print("===", name, "===")
+                print(report)
