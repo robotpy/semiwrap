@@ -47,3 +47,15 @@ if __name__ == "__main__":
             ]
             + sys.argv[1:]
         )
+
+    # Check their yaml files have been updated
+    for pkg in to_install:
+        subprocess_must_run(
+            [
+                sys.executable,
+                "-m",
+                "semiwrap",
+                "update-yaml",
+            ],
+            cwd=pkg,
+        )

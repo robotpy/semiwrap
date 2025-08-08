@@ -1,5 +1,3 @@
----
-
 classes:
   DocClass:
     methods:
@@ -7,3 +5,13 @@ classes:
         param_override:
           renamed:
             name: ohai
+      fn:
+      utf8_docstring:
+      fn2:
+    attributes:
+      sweet_var:
+      bitfield:
+enums:
+  DocEnum:
+functions:
+  important_retval:

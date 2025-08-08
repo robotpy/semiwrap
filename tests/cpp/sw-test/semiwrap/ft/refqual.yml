@@ -1,6 +1,7 @@
 functions:
   refquals_fn1:
   refquals_fn2:
+  refquals_fn3:
 classes:
   RefQuals:
     methods:

@@ -1,5 +1,3 @@
----
-
 classes:
   inheritance::IBase:
     methods:

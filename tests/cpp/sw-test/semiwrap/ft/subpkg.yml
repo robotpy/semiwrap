@@ -1,11 +1,10 @@
----
 functions:
   sp_func:
     subpackage: subpkg
 classes:
   SPClass:
     subpackage: subpkg
-  
+
   SPTemplate:
     template_params:
     - T

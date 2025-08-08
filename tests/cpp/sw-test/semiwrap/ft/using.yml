@@ -1,4 +1,3 @@
-
 typealias:
 - cr::AlsoCantResolve
 
@@ -6,4 +5,16 @@ classes:
   cr::inner::ProtectedUsing:
     typealias:
     - cr::CantResolve
+    methods:
+      ProtectedUsing:
+        overloads:
+          "":
+          CantResolve:
   u::FwdDecl:
+    attributes:
+      x:
+functions:
+  fn_using:
+    overloads:
+      AlsoCantResolve:
+      std::string:
