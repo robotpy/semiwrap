@@ -2,11 +2,17 @@ classes:
   bq::THiddenBase1:
     template_params:
     - T
+    methods:
+      THiddenBase1:
   bq::THiddenBase2:
     template_params:
     - T
 
+    methods:
+      THiddenBase2:
   bq::Hidden:
+    methods:
+      Hidden:
 
 templates:
   THiddenBase:

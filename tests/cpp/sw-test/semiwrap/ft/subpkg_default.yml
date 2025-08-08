@@ -1,4 +1,3 @@
----
 defaults:
   subpackage: subpkg
 
@@ -6,7 +5,6 @@ functions:
   sp2_func:
 classes:
   SP2Class:
-  
   SP2Template:
     template_params:
     - T

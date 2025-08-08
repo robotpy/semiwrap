@@ -43,17 +43,17 @@ It can be useful to use this command in CI to detect if you forgot to wrap
 headers. Add the ``--check`` argument and it will exit with an error code if
 any headers were printed out.
 
-.. _create_yaml:
+.. _update_yaml:
 
-create-yaml
+update-yaml
 -----------
 
 Once you have added headers to your semiwrap configuration in ``pyproject.toml``,
-the ``create-yaml`` tool can be used to create an initial YAML file that describes
+the ``update-yaml`` tool can be used to create or update an initial YAML file that describes
 the header file. Additionally, if a YAML file is already present, it will print
 out elements that are in the header but not in the YAML file.
 
-By default it will just print the file contents to stdout. Use the ``--write`` argument
+By default it will print a diff of the file contents to stdout. Use the ``--write`` argument
 to write the files, but it won't overwrite existing files.
 
 .. _create_imports:

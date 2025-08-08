@@ -1,4 +1,3 @@
-
 extra_includes:
 - using.h
 
@@ -7,14 +6,31 @@ classes:
     template_params:
     - T
   u::u2::Using1:
+    methods:
+      fn:
+        overloads:
+          PType:
+          float:
   u::u2::Using2:
+    methods:
+      fn:
+        overloads:
+          PType:
+          float:
   u::u2::Using3:
     typealias:
     - template <typename T> using fancy_list = u::fancy_list<T>
+    methods:
+      Using3:
   u::u2::Using4:
+    methods:
+      getX:
   u::u2::Using5a:
+    methods:
+      fn:
   u::u2::Using5b:
-  
+    methods:
+      fn:
 templates:
   fancy_int_list:
     qualname: u::fancy_list

@@ -165,7 +165,7 @@ class ExtensionModuleConfig:
     #:
     #: .. code-block:: sh
     #:
-    #:    semiwrap create-yaml --write
+    #:    semiwrap update-yaml --write
     #:
     #: .. seealso:: :ref:`gendata`
     #:

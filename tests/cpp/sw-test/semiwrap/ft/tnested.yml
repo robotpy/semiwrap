@@ -1,10 +1,8 @@
----
-
 classes:
   Outer:
     template_params:
     - T
-  
+
   Outer::Inner:
     attributes:
       t:

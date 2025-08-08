@@ -1,5 +1,3 @@
----
-
 classes:
   HasOperator:
     methods:

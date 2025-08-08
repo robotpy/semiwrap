@@ -1,5 +1,3 @@
----
-
 functions:
   fnParamArrayOutWithDefault:
     param_override:
@@ -9,20 +7,28 @@ functions:
   fnParamDisableNone:
     param_override:
       p:
-        disable_none: True
+        disable_none: true
 
   fnParamDisableAllNone:
-    disable_none: True
-  
+    disable_none: true
+
   fnParamAllowNone:
     param_override:
       fn:
-        disable_none: False
+        disable_none: false
 
   fnParamDisableDefault:
     param_override:
       p:
-        no_default: True
+        no_default: true
 
+  fnParamArrayOut:
+  fnParamFundPtr:
+    overloads:
+      int, int*:
+  fnParamOutNotSet:
+  fnParamFundRef:
+  fnParamFundConstRef:
+  fnParamAutoDisableNone:
 classes:
   Param:

@@ -1,7 +1,8 @@
----
 functions:
   # check_pure_io:
   check_impure_io:
+  check_pure_io:
+  check_different_cpp_and_py:
 classes:
   VBase:
     methods:
@@ -72,7 +73,7 @@ classes:
             self->impure_io(ss);
             return "py vchild impure + " + ss.str();
           }
-        virtual_xform: |
+        virtual_xform: |-
           [&](py::function &overload) {
             auto s = py::cast<std::string>(overload());
             ss << "vchild-xform-impure ";

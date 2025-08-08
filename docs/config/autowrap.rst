@@ -40,7 +40,7 @@ line tool:
 
 .. code-block:: sh
 
-   semiwrap create-yaml --write
+   semiwrap update-yaml --write
 
 This can be a good way to get the boilerplate out of the way when you need to
 provide customizations.

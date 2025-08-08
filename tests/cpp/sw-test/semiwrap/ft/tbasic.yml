@@ -1,4 +1,3 @@
----
 classes:
   TBasic:
     template_params:
@@ -11,7 +10,10 @@ classes:
           // checking to see if clsName is available
           return "<" + clsName + ">";
         });
-  
+
+    methods:
+      getT:
+      setT:
 templates:
   TBasicString:
     qualname: TBasic

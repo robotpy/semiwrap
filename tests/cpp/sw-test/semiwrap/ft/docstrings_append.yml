@@ -1,4 +1,3 @@
----
 enums:
   DocAppendEnum:
     doc_append: |
@@ -19,7 +18,7 @@ classes:
       fn:
         doc_append: |
           Useful extra information about this fn
-  
+
   DocWithTemplate:
     template_params:
     - T
@@ -31,11 +30,11 @@ templates:
     - int
     doc: |
       Set docs to this
-  
+
   DocTemplateAppend:
     qualname: DocWithTemplate
     params:
     - double
     doc_append: |
       Extra appended docs
-    
+

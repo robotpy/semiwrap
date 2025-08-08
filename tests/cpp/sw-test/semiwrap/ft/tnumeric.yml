@@ -1,28 +1,25 @@
----
 classes:
   TBaseGetN:
     template_params:
     - int N
     methods:
       getIt:
-  
   TChildGetN4:
-  
   TChildGetN:
     template_params:
     - int N
-    
+
 templates:
   TBaseGetN4:
     qualname: TBaseGetN
     params:
     - 4
-  
+
   TBaseGetN6:
     qualname: TBaseGetN
     params:
     - 6
-  
+
   TChildGetN6:
     qualname: TChildGetN
     params:

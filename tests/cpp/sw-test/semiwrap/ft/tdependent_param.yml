@@ -1,11 +1,12 @@
----
 classes:
   whatever::TDependentParam:
     template_params:
     - T
     typealias:
     - template <typename TT> using TDependentUsing = whatever::TDependentUsing<TT>
-  
+
+    methods:
+      getThird:
 templates:
   TDependentParamInt:
     qualname: whatever::TDependentParam

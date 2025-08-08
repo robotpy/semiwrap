@@ -86,6 +86,16 @@ class PyProject:
         deps.extend(extension.depends)
         return deps
 
+    def get_extension_yaml_path(self, extension: ExtensionModuleConfig) -> pathlib.Path:
+        # Returns relative path
+
+        if extension.yaml_path is None:
+            return pathlib.Path("semiwrap")
+
+        yaml_path = pathlib.Path(pathlib.PurePosixPath(extension.yaml_path))
+        assert not yaml_path.is_absolute()
+        return yaml_path
+
     def get_extension_headers(
         self, extension: ExtensionModuleConfig
     ) -> T.Generator[T.Tuple[str, str], None, None]:

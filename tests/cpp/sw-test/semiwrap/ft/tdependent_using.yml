@@ -1,11 +1,15 @@
----
 classes:
   whatever::TDependentUsing:
     template_params:
     - T
     typealias:
     - VectorType = std::vector<T>
-  
+
+    methods:
+      getThird:
+        overloads:
+          VectorType:
+          std::function<VectorType ()>:
 templates:
   TDependentUsingInt:
     qualname: whatever::TDependentUsing
