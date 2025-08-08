@@ -64,7 +64,7 @@ class LocalDependency:
 
 @dataclasses.dataclass(frozen=True)
 class InputFile:
-    # TODO: what is this relative to?
+    #: this path is always relative to the project root
     path: pathlib.Path
 
 
@@ -152,7 +152,7 @@ class _BuildPlanner:
 
         self.pyproject = PyProject(project_root / "pyproject.toml")
         self.pkgcache = PkgconfCache()
-        self.pyproject_input = InputFile(project_root / "pyproject.toml")
+        self.pyproject_input = InputFile(pathlib.Path("pyproject.toml"))
 
         self.pyi_targets: T.List[BuildTarget] = []
         self.pyi_args = []
