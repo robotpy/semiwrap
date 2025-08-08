@@ -128,6 +128,7 @@ def make_argparser() -> argparse.ArgumentParser:
     parser.add_argument("compiler_flavor")
     parser.add_argument("cpp_std")
     parser.add_argument("compiler_args", nargs="+")
+    parser.add_argument("--update-yaml", action="store_true", default=False)
     return parser
 
 
@@ -135,8 +136,20 @@ def main():
     parser = make_argparser()
     args = parser.parse_args()
 
-    with open(args.in_casters, "rb") as fp:
-        casters = pickle.load(fp)
+    if not args.update_yaml:
+        dst_dat = args.dst_dat
+        dst_depfile = args.dst_depfile
+        report_only = False
+        warn_on_missing_header = True
+
+        with open(args.in_casters, "rb") as fp:
+            casters = pickle.load(fp)
+    else:
+        dst_dat = None
+        dst_depfile = None
+        report_only = True
+        warn_on_missing_header = False
+        casters = {}
 
     compiler_args = args.compiler_args
 
@@ -148,20 +161,27 @@ def main():
     if args.cpp and args.compiler_flavor != "gcc":
         args.defines.append(f"__cplusplus {args.cpp}")
 
-    generate_wrapper(
+    missing = generate_wrapper(
         name=args.name,
         src_yml=args.src_yml,
         src_h=args.src_h,
         src_h_root=args.src_h_root,
-        dst_dat=args.dst_dat,
-        dst_depfile=args.dst_depfile,
+        dst_dat=dst_dat,
+        dst_depfile=dst_depfile,
         include_paths=args.include_paths,
         compiler_flavor=args.compiler_flavor,
         compiler_args=compiler_args,
         casters=casters,
         pp_defines=args.defines,
-        report_only=False,
+        report_only=report_only,
+        warn_on_missing_header=warn_on_missing_header,
     )
+
+    if args.update_yaml:
+        report = format_missing(missing)
+        args.src_yml.parent.mkdir(parents=True, exist_ok=True)
+        with open(args.src_yml, "w") as fp:
+            fp.write(report)
 
 
 if __name__ == "__main__":

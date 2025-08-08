@@ -1,5 +1,7 @@
+import concurrent.futures
 import os
 import pathlib
+import subprocess
 import sys
 import traceback
 import tempfile
@@ -11,7 +13,6 @@ import dictdiffer.utils
 from io import StringIO
 from ruamel.yaml import YAML
 
-from ..cmd.header2dat import make_argparser, generate_wrapper, format_missing
 from ..makeplan import InputFile, makeplan, BuildTarget, CompilerInfo
 from ..pyproject import PyProject
 
@@ -50,6 +51,15 @@ class YamlUpdater:
             "-v", "--verbose", help="Show full traceback", action="store_true"
         )
 
+        max_jobs = os.cpu_count() or 1
+
+        parser.add_argument(
+            "-j",
+            "--max-jobs",
+            help="Number of processes to run in parallel",
+            default=max_jobs,
+        )
+
         return parser
 
     def run(self, args):
@@ -84,6 +94,16 @@ class YamlUpdater:
             print("".join(msg), file=sys.stderr)
             sys.exit(1)
 
+    def _exec_header2dat(self, argv):
+        args = [sys.executable, "-m", "semiwrap.cmd.header2dat"] + argv
+        proc = subprocess.run(
+            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8"
+        )
+        if proc.returncode == 0:
+            return
+
+        return "+" + " ".join(args) + "\n" + proc.stdout.rstrip()
+
     def _run(self, args, generated_dir: pathlib.Path):
         project_root = args.project_file.parent
 
@@ -108,6 +128,9 @@ class YamlUpdater:
                 )
             else:
                 os.environ["PKG_CONFIG_PATH"] = os.pathsep.join(pcpaths)
+
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=args.max_jobs)
+        futs = []
 
         plan = makeplan(project_root, missing_yaml_ok=True)
         for item in plan:
@@ -135,35 +158,20 @@ class YamlUpdater:
                     # anything else shouldn't matter
                     argv.append("ignored")
 
-            sparser = make_argparser()
-            sargs = sparser.parse_args(argv)
+            argv.append("--update-yaml")
 
-            if sargs.cpp:
-                sargs.defines.append(f"__cplusplus {sargs.cpp}")
+            # Execute the tool in parallel
+            futs.append(executor.submit(self._exec_header2dat, argv))
 
-            missing = generate_wrapper(
-                name=sargs.name,
-                src_yml=sargs.src_yml,
-                src_h=sargs.src_h,
-                src_h_root=sargs.src_h_root,
-                dst_dat=None,
-                dst_depfile=None,
-                include_paths=sargs.include_paths,
-                compiler_flavor="pcpp",
-                compiler_args=[],
-                casters={},
-                pp_defines=sargs.defines,
-                report_only=True,
-                warn_on_missing_header=False,
-            )
+        fail = False
+        for fut in concurrent.futures.as_completed(futs):
+            result = fut.result()
+            if result is not None:
+                fail = True
+                print(result)
 
-            if missing:
-                report = format_missing(missing)
-                name = sargs.src_yml
-
-                name.parent.mkdir(parents=True, exist_ok=True)
-                with open(name, "w") as fp:
-                    fp.write(report)
+        if fail:
+            return False
 
         files_updated = self.merge_data(args.write, project_root, generated_dir)
 
