@@ -13,6 +13,7 @@ from ruamel.yaml import YAML
 
 from ..cmd.header2dat import make_argparser, generate_wrapper, format_missing
 from ..makeplan import InputFile, makeplan, BuildTarget, CompilerInfo
+from ..pyproject import PyProject
 
 
 class YamlUpdater:
@@ -20,11 +21,10 @@ class YamlUpdater:
     This class will parse the headers for a semiwrap project and create or update their corresponding yaml files.
 
     The process for doing this goes as such:
-        1. Copy backups of the yaml files into a temporary directory
-        2. Make a temporary directory where the headers will be parsed from scratch
-        3. Merge the additions / deletions from the fresh generation with the backups, and place them into the desired output folder
-
-    It is made to handle custom output directories, but by default it will behave as if it was run "in place"
+        1. Parse the headers and generate .yml files into a temporary directory
+        2. Merge the additions / deletions from the fresh generation with the backups
+        3. Output the differences
+        4. Optionally write the changes to the files
 
     This process will keep hand edited values like "ignore", "extra_includes", etc, but should be smart enough to delete config
     items that no longer exist.
@@ -44,12 +44,6 @@ class YamlUpdater:
             default=pathlib.Path("./pyproject.toml"),
         )
         parser.add_argument(
-            "--output_directory",
-            help="Where the updated yaml files will be written",
-            type=pathlib.Path,
-            default=pathlib.Path("semiwrap"),
-        )
-        parser.add_argument(
             "--write", help="Write to files if they don't exist", action="store_true"
         )
         parser.add_argument(
@@ -60,12 +54,8 @@ class YamlUpdater:
 
     def run(self, args):
         try:
-            is_dirty = self._run(args)
-            if is_dirty:
-                print(
-                    "Changes have been detected in the yaml files. Run again and add --write to fix"
-                )
-            return not is_dirty
+            with tempfile.TemporaryDirectory() as gendir:
+                return self._run(args, pathlib.Path(gendir))
         except Exception as e:
             # Reading the stack trace is annoying, most of the time the exception content
             # is enough to figure out what you did wrong.
@@ -94,18 +84,8 @@ class YamlUpdater:
             print("".join(msg), file=sys.stderr)
             sys.exit(1)
 
-    def _run(self, args):
-        project_root = args.project_file.parent.absolute()
-
-        output_directory = args.output_directory.absolute()
-
-        tmp_backup_dir = tempfile.TemporaryDirectory()
-        backup_dir = pathlib.Path(tmp_backup_dir.name)
-        shutil.copytree(project_root / "semiwrap", backup_dir / "semiwrap")
-
-        tmp_generated_dir = tempfile.TemporaryDirectory()
-        generated_dir = pathlib.Path(tmp_generated_dir.name)
-        os.chdir(generated_dir)
+    def _run(self, args, generated_dir: pathlib.Path):
+        project_root = args.project_file.parent
 
         # Problem: if another hatchling plugin sets PKG_CONFIG_PATH to include a .pc
         # file, makeplan() will fail to find it, which prevents a semiwrap program
@@ -142,7 +122,11 @@ class YamlUpdater:
                 if isinstance(arg, str):
                     argv.append(arg)
                 elif isinstance(arg, InputFile):
-                    argv.append(str(arg.path.absolute()))
+                    # Causes missing content to be written to generated directory
+                    if arg.path.name.endswith(".yml"):
+                        argv.append(str(generated_dir / arg.path))
+                    else:
+                        argv.append(str(arg.path))
                 elif isinstance(arg, pathlib.Path):
                     argv.append(str(arg.absolute()))
                 elif isinstance(arg, CompilerInfo):
@@ -170,6 +154,7 @@ class YamlUpdater:
                 casters={},
                 pp_defines=sargs.defines,
                 report_only=True,
+                warn_on_missing_header=False,
             )
 
             if missing:
@@ -180,66 +165,70 @@ class YamlUpdater:
                 with open(name, "w") as fp:
                     fp.write(report)
 
-        is_dirty = self.merge_data(
-            args.write, generated_dir, backup_dir, output_directory
-        )
+        files_updated = self.merge_data(args.write, project_root, generated_dir)
 
-        # Windows can freak out if you are in a temp directory when it tries to get deleted, so just move elsewhere
-        os.chdir("..")
+        if args.write:
+            print(files_updated, "files were updated")
+            return True
 
-        return is_dirty
+        # When not writing, return True if no changes needed, False otherwise
+
+        if files_updated == 0:
+            print("All files up to date")
+        else:
+            print(
+                files_updated,
+                "files need to be updated (use --write to apply the changes)",
+            )
+
+        return files_updated == 0
 
     def merge_data(
         self,
         write: bool,
+        project_root: pathlib.Path,
         generated_directory: pathlib.Path,
-        backup_directory: pathlib.Path,
-        output_directory: pathlib.Path,
     ):
-        is_dirty = False
+        files_updated = 0
 
         if not write:
             print("\n\n" + "*" * 20 + "\nDry Run Results\n" + "*" * 20)
+
+        # Collect original YAML files for diff
+        original_files = set()
+        pyproject = PyProject(project_root)
+        for extcfg in pyproject.project.extension_modules.values():
+            original_files |= set(
+                pyproject.get_extension_yaml_path(extcfg).glob("**/*.yml")
+            )
+
         generated_files = set()
-        for root, _, files in os.walk(generated_directory):
-            for f in files:
-                generated_files.add(
-                    (pathlib.Path(root) / f).relative_to(generated_directory)
-                )
+        for f in generated_directory.glob("**/*.yml"):
+            generated_files.add(f.relative_to(generated_directory))
 
-        backup_files = set()
-        for root, _, files in os.walk(backup_directory):
-            for f in files:
-                backup_files.add((pathlib.Path(root) / f).relative_to(backup_directory))
-
-        # In the event that the output directory is the same as the project directory, explicit delete files that are
-        # no longer used in generation
-        deleted_files = backup_files.difference(generated_files)
-        for f in deleted_files:
-            if f.suffix == ".yml":
-                file_to_delete = output_directory / f
-                if write:
-                    print(f"Deleting unused file {file_to_delete}")
-                    # It will only exist if the output directory is the same as the original directory.
-                    # This would be true in the default case, but not if the tool is invoked from bazel
-                    if file_to_delete.exists():
-                        os.unlink(file_to_delete)
-                else:
-                    is_dirty = True
-                    print(f"Would delete {file_to_delete}")
+        # Delete files that are no longer used in generation
+        deleted_files = original_files.difference(generated_files)
+        for file_to_delete in deleted_files:
+            files_updated += 1
+            if write:
+                print(f"Deleting unused file {file_to_delete}")
+                os.unlink(file_to_delete)
+            else:
+                print(f"Would delete {file_to_delete}")
 
         # Add new files
-        added_files = generated_files.difference(backup_files)
+        added_files = generated_files.difference(original_files)
         for f in added_files:
-            output_file = output_directory / f
+            files_updated += 1
+            output_file = project_root / f
             if write:
                 output_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(f, output_file)
+                shutil.copy(generated_directory / f, output_file)
                 print(f"Added new file {output_file}")
             else:
-                is_dirty = True
-                print(f"Would add this following file {output_file}")
-                print(f.read_text())
+                print(f"Would create {output_file}")
+
+            print((generated_directory / f).read_text())
 
         # Setup the yaml parser with some default arguments
         yaml_ = YAML()
@@ -256,11 +245,11 @@ class YamlUpdater:
             "overloads",
         ]
 
-        common_files = backup_files.intersection(generated_files)
-        for f in common_files:
+        common_files = original_files.intersection(generated_files)
+        for f in sorted(common_files):
             with open(generated_directory / f) as fp:
                 generated = yaml_.load(fp)
-            with open(backup_directory / f) as fp:
+            with open(project_root / f) as fp:
                 original = yaml_.load(fp)
 
             diffs = dictdiffer.diff(original, generated)
@@ -313,37 +302,36 @@ class YamlUpdater:
                         continue
                     original = dictdiffer.patch(additions, original)
 
-            output_file = output_directory / f.relative_to("semiwrap")
+            # Output a diff
+            output_file = project_root / f
 
-            if write:
-                output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "r") as of:
+                output_lines = of.readlines()
 
-                with open(output_file, "w") as f:
-                    yaml_.dump(original, f)
-            else:
-                # Original dir might be the same as the output dir, so we have to dump it into a string
-                # rather than risk writing the file and doing a simpler diff.
-                strbuff = StringIO()
-                yaml_.dump(original, strbuff)
-                strbuff.seek(0)
-                merged_lines = strbuff.readlines()
+            strbuff = StringIO()
+            yaml_.dump(original, strbuff)
+            strbuff.seek(0)
+            merged_lines = strbuff.readlines()
 
-                with open(output_file, "r") as of:
-                    output_lines = of.readlines()
+            differences = difflib.unified_diff(
+                output_lines,
+                merged_lines,
+                fromfile=str(f),
+                tofile=str(f),
+            )
+            differences = list(differences)
 
-                differences = difflib.unified_diff(
-                    output_lines,
-                    merged_lines,
-                    fromfile=str(f),
-                    tofile=str(f),
-                )
-                differences = list(differences)
+            if differences:
+                files_updated += 1
 
-                if differences:
-                    is_dirty = True
-                    print("Diff for ", output_file)
-                    for difference in differences:
-                        print(difference.rstrip())
-                    print()
+                print("Diff for", output_file)
+                for difference in differences:
+                    print(difference.rstrip())
+                print()
 
-        return is_dirty
+                if write:
+                    with open(output_file, "w") as fp:
+                        strbuff.seek(0)
+                        shutil.copyfileobj(strbuff, fp)
+
+        return files_updated

@@ -42,6 +42,7 @@ def generate_wrapper(
     dst_dat: typing.Optional[pathlib.Path],
     dst_depfile: typing.Optional[pathlib.Path],
     report_only: bool,
+    warn_on_missing_header: bool = True,
 ):
 
     try:
@@ -51,7 +52,9 @@ def generate_wrapper(
         if not report_only:
             raise
 
-        print("WARNING: could not find", src_yml)
+        if warn_on_missing_header:
+            print("WARNING: could not find", src_yml)
+
         data = AutowrapConfigYaml()
 
     deptarget = None

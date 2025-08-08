@@ -357,16 +357,9 @@ class _BuildPlanner:
         # Process the headers
         #
 
-        # Find and load the yaml
-        if extension.yaml_path is None:
-            yaml_path = pathlib.Path("semiwrap")
-        else:
-            yaml_path = pathlib.Path(pathlib.PurePosixPath(extension.yaml_path))
-
         datfiles, module_sources, subpackages = yield from self._process_headers(
             extension,
             package_path,
-            yaml_path,
             include_directories_uniq.keys(),
             search_path,
             all_type_casters,
@@ -520,7 +513,6 @@ class _BuildPlanner:
         self,
         extension: ExtensionModuleConfig,
         package_path: pathlib.Path,
-        yaml_path: pathlib.Path,
         include_directories_uniq: T.Iterable[pathlib.Path],
         search_path: T.List[pathlib.Path],
         all_type_casters: BuildTarget,
@@ -529,6 +521,8 @@ class _BuildPlanner:
         module_sources: T.List[BuildTarget] = []
         subpackages: T.Set[str] = set()
         define_args = []
+
+        yaml_path = self.pyproject.get_extension_yaml_path(extension)
 
         if extension.defines:
             for dname, dvalue in extension.defines.items():
