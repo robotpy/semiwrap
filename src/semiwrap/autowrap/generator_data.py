@@ -1,5 +1,3 @@
-import yaml
-
 from ..config.autowrap_yml import (
     ClassData,
     EnumData,
@@ -203,7 +201,7 @@ class GeneratorData:
 
         return data
 
-    def report_missing(self, name: pathlib.Path, reporter: "MissingReporter"):
+    def get_missing(self):
         """
         Generate a structure that can be copy/pasted into the generation
         data yaml and print it out if there's missing data
@@ -245,9 +243,6 @@ class GeneratorData:
                 all_cls_data[str(cls_key)] = result
         if all_cls_data:
             data["classes"] = all_cls_data
-
-        if data:
-            reporter.add_report(name, data)
 
         return data
 
@@ -351,36 +346,3 @@ class GeneratorData:
         #         signature = "[constexpr]"
 
         return signature
-
-
-class MissingReporter:
-    def __init__(self):
-        self.reports = {}
-
-    def __bool__(self) -> bool:
-        return len(self.reports) > 0
-
-    def _merge(self, src, dst):
-        for k, v in src.items():
-            if isinstance(v, dict):
-                if k not in dst:
-                    dst[k] = v
-                else:
-                    self._merge(v, dst[k])
-            else:
-                dst[k] = v
-
-    def add_report(self, name, data):
-        if name in self.reports:
-            self._merge(data, self.reports[name])
-        else:
-            self.reports[name] = data
-
-    def as_yaml(self):
-        for name, report in self.reports.items():
-            yield name, (
-                yaml.safe_dump(report, sort_keys=False)
-                .replace(" {}", "")
-                .replace("? ''\n          :", '"":')
-                .replace("? ''\n      :", '"":')
-            )
