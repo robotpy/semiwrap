@@ -1,5 +1,3 @@
----
-
 classes:
   inheritance::IMOther:
   inheritance::IMChild:

@@ -1,28 +1,26 @@
----
-
 classes:
   Buffers:
     methods:
       set_buffer:
         buffers:
-        - { type: IN, src: data, len: len }
+        - {type: IN, src: data, len: len}
       get_buffer2:
         buffers:
-        - { type: OUT, src: data, len: len }
+        - {type: OUT, src: data, len: len}
       get_buffer1:
         buffers:
-        - { type: OUT, src: data, len: len }
+        - {type: OUT, src: data, len: len}
       inout_buffer:
         buffers:
-        - { type: IN, src: indata, len: size }
-        - { type: OUT, src: outdata, len: size }
+        - {type: IN, src: indata, len: size}
+        - {type: OUT, src: outdata, len: size}
 
       v_set_buffer:
         buffers:
-        - { type: IN, src: data, len: len }
+        - {type: IN, src: data, len: len}
       v_get_buffer2:
         buffers:
-        - { type: OUT, src: data, len: len }
+        - {type: OUT, src: data, len: len}
       v_get_buffer1:
         buffers:
-        - { type: OUT, src: data, len: len }
+        - {type: OUT, src: data, len: len}

@@ -1,9 +1,13 @@
----
 classes:
   whatever::TDependentUsing2:
     template_params:
     - T
-  
+
+    methods:
+      getThird:
+        overloads:
+          VectorType:
+          std::function<VectorType ()>:
 templates:
   TDependentUsing2Int:
     qualname: whatever::TDependentUsing2
