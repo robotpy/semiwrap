@@ -45,6 +45,12 @@ class YamlUpdater:
             default=pathlib.Path("./pyproject.toml"),
         )
         parser.add_argument(
+            "--override_output_directory",
+            help="Optional. Allows you to override the directory the files get "
+            "written to. If present, will trim off the first level of nested directories (i.e. remove semiwrap/)",
+            type=pathlib.Path,
+        )
+        parser.add_argument(
             "--write", help="Write to files if they don't exist", action="store_true"
         )
         parser.add_argument(
@@ -65,7 +71,9 @@ class YamlUpdater:
     def run(self, args):
         try:
             with tempfile.TemporaryDirectory() as gendir:
-                return self._run(args, pathlib.Path(gendir))
+                return self._run(
+                    args, pathlib.Path(gendir), args.override_output_directory
+                )
         except Exception as e:
             # Reading the stack trace is annoying, most of the time the exception content
             # is enough to figure out what you did wrong.
@@ -104,7 +112,12 @@ class YamlUpdater:
 
         return "+" + " ".join(args) + "\n" + proc.stdout.rstrip()
 
-    def _run(self, args, generated_dir: pathlib.Path):
+    def _run(
+        self,
+        args,
+        generated_dir: pathlib.Path,
+        override_output_directory: T.Optional[pathlib.Path],
+    ):
         project_root = args.project_file.parent
 
         # Problem: if another hatchling plugin sets PKG_CONFIG_PATH to include a .pc
@@ -173,7 +186,9 @@ class YamlUpdater:
         if fail:
             return False
 
-        files_updated = self.merge_data(args.write, project_root, generated_dir)
+        files_updated = self.merge_data(
+            args.write, args.project_file, generated_dir, override_output_directory
+        )
 
         if args.write:
             print(files_updated, "files were updated")
@@ -194,9 +209,12 @@ class YamlUpdater:
     def merge_data(
         self,
         write: bool,
-        project_root: pathlib.Path,
+        project_file: pathlib.Path,
         generated_directory: pathlib.Path,
+        override_output_directory: T.Optional[pathlib.Path],
     ):
+        project_root = project_file.parent
+
         files_updated = 0
 
         if not write:
@@ -204,11 +222,14 @@ class YamlUpdater:
 
         # Collect original YAML files for diff
         original_files = set()
-        pyproject = PyProject(project_root)
+        pyproject = PyProject(project_file)
         for extcfg in pyproject.project.extension_modules.values():
-            original_files |= set(
-                pyproject.get_extension_yaml_path(extcfg).glob("**/*.yml")
-            )
+            original_files |= {
+                x.relative_to(project_root)
+                for x in (
+                    project_root / pyproject.get_extension_yaml_path(extcfg)
+                ).glob("**/*.yml")
+            }
 
         generated_files = set()
         for f in generated_directory.glob("**/*.yml"):
@@ -220,7 +241,7 @@ class YamlUpdater:
             files_updated += 1
             if write:
                 print(f"Deleting unused file {file_to_delete}")
-                os.unlink(file_to_delete)
+                os.unlink(project_root / file_to_delete)
             else:
                 print(f"Would delete {file_to_delete}")
 
@@ -228,7 +249,10 @@ class YamlUpdater:
         added_files = generated_files.difference(original_files)
         for f in added_files:
             files_updated += 1
-            output_file = project_root / f
+            if override_output_directory:
+                output_file = output_directory / pathlib.Path(f.parts[1:])
+            else:
+                output_file = project_root / f
             if write:
                 output_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(generated_directory / f, output_file)
@@ -311,9 +335,9 @@ class YamlUpdater:
                     original = dictdiffer.patch(additions, original)
 
             # Output a diff
-            output_file = project_root / f
+            original_file = project_root / f
 
-            with open(output_file, "r") as of:
+            with open(original_file, "r") as of:
                 output_lines = of.readlines()
 
             strbuff = StringIO()
@@ -332,14 +356,20 @@ class YamlUpdater:
             if differences:
                 files_updated += 1
 
-                print("Diff for", output_file)
+                print("Diff for", original_file)
                 for difference in differences:
                     print(difference.rstrip())
                 print()
 
-                if write:
-                    with open(output_file, "w") as fp:
-                        strbuff.seek(0)
-                        shutil.copyfileobj(strbuff, fp)
+            if write:
+                if override_output_directory:
+                    output_file = override_output_directory / pathlib.Path(*f.parts[1:])
+                    output_file.parent.mkdir(parents=True, exist_ok=True)
+                else:
+                    output_file = project_root / f
+
+                with open(output_file, "w") as fp:
+                    strbuff.seek(0)
+                    shutil.copyfileobj(strbuff, fp)
 
         return files_updated
