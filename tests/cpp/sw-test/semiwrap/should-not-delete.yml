@@ -1,0 +1,2 @@
+# This file is present to ensure that update-yaml doesn't try to delete it
+# since it isn't an extension yaml directory
