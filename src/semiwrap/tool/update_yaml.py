@@ -265,7 +265,7 @@ class YamlUpdater:
         for f in added_files:
             files_updated += 1
             if override_output_directory:
-                output_file = output_directory / pathlib.Path(f.parts[1:])
+                output_file = override_output_directory / pathlib.Path(*f.parts[1:])
             else:
                 output_file = project_root / f
             if write:
