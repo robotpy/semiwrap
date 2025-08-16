@@ -104,3 +104,10 @@ class PyProject:
                 yield yml, hdr
             elif self._enable_if(hdr.enable_if):
                 yield yml, hdr.header
+
+    def get_disabled_headers(
+        self, extension: ExtensionModuleConfig
+    ) -> T.Generator[T.Tuple[str, str], None, None]:
+        for yml, hdr in extension.headers.items():
+            if not isinstance(hdr, str) and not self._enable_if(hdr.enable_if):
+                yield yml, hdr.header

@@ -222,21 +222,36 @@ class YamlUpdater:
 
         # Collect original YAML files for diff
         original_files = set()
+        disabled_files = set()
         pyproject = PyProject(project_file)
         for extcfg in pyproject.project.extension_modules.values():
+            partial_path = pyproject.get_extension_yaml_path(extcfg)
+            full_path = project_root / partial_path
             original_files |= {
-                x.relative_to(project_root)
-                for x in (
-                    project_root / pyproject.get_extension_yaml_path(extcfg)
-                ).glob("**/*.yml")
+                x.relative_to(project_root) for x in full_path.glob("**/*.yml")
+            }
+            disabled_files |= {
+                partial_path / f"{x}.yml"
+                for x, _ in pyproject.get_disabled_headers(extcfg)
             }
 
         generated_files = set()
         for f in generated_directory.glob("**/*.yml"):
             generated_files.add(f.relative_to(generated_directory))
 
+        # Copy disabled files as is if you are using a custom output directory. If you are using the standard output
+        # directory just leave the file alone
+        if override_output_directory:
+            for disabled_file in disabled_files:
+                output_file = override_output_directory / pathlib.Path(
+                    *disabled_file.parts[1:]
+                )
+            shutil.copy(project_root / disabled_file, output_file)
+
         # Delete files that are no longer used in generation
-        deleted_files = original_files.difference(generated_files)
+        deleted_files = original_files.difference(generated_files).difference(
+            disabled_files
+        )
         for file_to_delete in deleted_files:
             files_updated += 1
             if write:
@@ -250,7 +265,7 @@ class YamlUpdater:
         for f in added_files:
             files_updated += 1
             if override_output_directory:
-                output_file = output_directory / pathlib.Path(f.parts[1:])
+                output_file = override_output_directory / pathlib.Path(*f.parts[1:])
             else:
                 output_file = project_root / f
             if write:
