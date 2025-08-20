@@ -246,7 +246,7 @@ class YamlUpdater:
                 output_file = override_output_directory / pathlib.Path(
                     *disabled_file.parts[1:]
                 )
-            shutil.copy(project_root / disabled_file, output_file)
+                shutil.copy(project_root / disabled_file, output_file)
 
         # Delete files that are no longer used in generation
         deleted_files = original_files.difference(generated_files).difference(
