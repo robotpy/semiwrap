@@ -34,6 +34,7 @@ dependencies = [
     "typing-extensions",
     "pyyaml >= 5.1",
     "pybind11-stubgen ~= 2.5.1",
+    "pybind11 ~= 3.0.1",
 ]
 
 [project.entry-points.hatch]
@@ -56,15 +57,6 @@ version-file = "src/semiwrap/version.py"
 
 [tool.hatch.build.targets.sdist]
 packages = ["src/semiwrap"]
-exclude = [
-    "/src/semiwrap/pybind11"
-]
-[tool.hatch.build.targets.sdist.force-include]
-"./src/semiwrap/pybind11/include" = "./semiwrap/pybind11/include"
-"./src/semiwrap/pybind11/LICENSE" = "./LICENSE-pybind11.txt"
 
 [tool.black]
 target-version = ["py38"]
-extend-exclude = '''
-^/src/semiwrap/pybind11
-'''
