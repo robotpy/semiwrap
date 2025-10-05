@@ -59,6 +59,14 @@ def _write_pyi(
         for infile in generated_pyi.keys():
             (tmpdir_pth / infile).parent.mkdir(parents=True, exist_ok=True)
 
+        # Fix typing.Annotated bug in < 3.8
+        # - the Right Fix would be to emit typing_extensions.Annotated in pybind11,
+        #   but Python 3.8 support will go away soon so not worth it
+        if sys.version_info < (3, 9):
+            import typing_extensions
+
+            T.Annotated = typing_extensions.Annotated
+
         pybind11_stubgen.main()
 
         # stubgen doesn't take a direct output filename, so move the file
