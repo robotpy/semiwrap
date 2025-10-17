@@ -219,8 +219,8 @@ class FunctionContext:
 
     release_gil: bool
 
-    # List of template instantiations
-    template_impls: typing.Optional[typing.List[typing.List[str]]]
+    # List of template instantiations (key is template name, value is type)
+    template_impls: typing.Optional[typing.List[typing.Dict[str, str]]]
 
     virtual_xform: typing.Optional[str]
 

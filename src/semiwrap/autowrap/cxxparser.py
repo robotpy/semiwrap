@@ -50,6 +50,7 @@ from cxxheaderparser.types import (
     PQNameSegment,
     Reference,
     TemplateInst,
+    TemplateTypeParam,
     Type,
     Typedef,
     UsingAlias,
@@ -1408,15 +1409,39 @@ class AutowrapVisitor:
         if data.keepalive is not None:
             keepalives = data.keepalive
 
+        template_impls: typing.Optional[typing.List[typing.Dict[str, str]]] = None
+
         # Check for user errors
         if not self.report_only:
-            if fn.template:
-                if data.template_impls is None and not data.cpp_code:
+            fn_template = fn.template
+            user_template_impls = data.template_impls
+
+            if fn_template:
+                if user_template_impls is None and not data.cpp_code:
                     raise ValueError(
                         f"{fn_name}: must specify template impls for function template"
                     )
+
+                if user_template_impls is not None:
+                    template_impls = []
+
+                    # Build the template type mapping
+                    if isinstance(fn_template, list):
+                        fn_template = fn_template[-1]
+
+                    ttypes: typing.List[str] = []
+                    for tparam in fn_template.params:
+                        if isinstance(tparam, TemplateTypeParam) and tparam.name:
+                            ttypes.append(tparam.name)
+
+                    for i, impl in enumerate(user_template_impls):
+                        if len(impl) != len(ttypes):
+                            raise ValueError(
+                                f"{fn_name}: expected {impl} to have {len(ttypes)} items"
+                            )
+                        template_impls.append({k: v for k, v in zip(ttypes, impl)})
             else:
-                if data.template_impls is not None:
+                if user_template_impls is not None:
                     raise ValueError(
                         f"{fn_name}: cannot specify template_impls for non-template functions"
                     )
@@ -1452,7 +1477,7 @@ class AutowrapVisitor:
             ifdef=data.ifdef,
             ifndef=data.ifndef,
             release_gil=release_gil,
-            template_impls=data.template_impls,
+            template_impls=template_impls,
             virtual_xform=data.virtual_xform,
             is_overloaded=overload_tracker,
             _fn=fn,
