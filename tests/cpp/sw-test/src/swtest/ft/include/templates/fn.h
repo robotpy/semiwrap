@@ -33,3 +33,17 @@ template <typename T>
 T tmpl_fn(T t) {
     return t + 1;
 }
+
+template <typename T>
+T overloadedTFn(T v) {
+    return v;
+}
+
+template <typename T>
+T overloadedTFn(T v, T v2) {
+    return v + v2;
+}
+
+auto overloadedTFn(auto v1, auto v2, auto v3) {
+    return v1 + v2 + v3;
+}

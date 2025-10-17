@@ -211,14 +211,20 @@ def genmethod(
         _genmethod(r, varname, cls_qualname, fn, trampoline_qualname, "")
     else:
         for tmpl in fn.template_impls:
-            _genmethod(
-                r,
-                varname,
-                cls_qualname,
-                fn,
-                trampoline_qualname,
-                f"<{', '.join(tmpl)}>",
-            )
+            r.writeln("{")
+            with r.indent():
+                for ttype, utype in tmpl.types.items():
+                    r.writeln(f"using {ttype} [[maybe_unused]] = {utype};")
+
+                _genmethod(
+                    r,
+                    varname,
+                    cls_qualname,
+                    fn,
+                    trampoline_qualname,
+                    f"<{', '.join(tmpl.params)}>",
+                )
+            r.writeln("}")
 
 
 def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):

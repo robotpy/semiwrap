@@ -158,6 +158,17 @@ class GeneratedLambda:
 
 
 @dataclass
+class FnTemplateImpl:
+    """Render data for a function template"""
+
+    #: types (key is template name, value is type)
+    types: typing.Dict[str, str]
+
+    #: <params>
+    params: typing.List[str]
+
+
+@dataclass
 class FunctionContext:
     """Render data for a C++ function or method"""
 
@@ -220,7 +231,7 @@ class FunctionContext:
     release_gil: bool
 
     # List of template instantiations
-    template_impls: typing.Optional[typing.List[typing.List[str]]]
+    template_impls: typing.Optional[typing.List[FnTemplateImpl]]
 
     virtual_xform: typing.Optional[str]
 
