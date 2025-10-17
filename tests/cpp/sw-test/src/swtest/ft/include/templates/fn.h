@@ -24,3 +24,13 @@ template <typename T>
 T tmpl_fn(T t) {
     return t + 1;
 }
+
+template <typename T>
+T overloadedTFn(T v) {
+    return v;
+}
+
+template <typename T>
+T overloadedTFn(T v, T v2) {
+    return v + v2;
+}

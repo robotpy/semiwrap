@@ -25,3 +25,11 @@ functions:
   tmpl_fn:
     template_impls:
     - ["int"]
+
+  overloadedTFn:
+    overloads:
+      T:
+        template_impls:
+        - [double]
+      T, T:
+        ignore: true
