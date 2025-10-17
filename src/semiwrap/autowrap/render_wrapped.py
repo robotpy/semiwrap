@@ -167,10 +167,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 r.writeln()
                 for fn in hctx.functions:
                     if not fn.ignore_py:
-                        r.writeln(fn.scope_var)
-                        with r.indent(1):
-                            rpybind11.genmethod(r, None, fn, None)
-                        r.writeln(";")
+                        rpybind11.genmethod(r, fn.scope_var, None, fn, None)
 
             if hctx.inline_code:
                 r.writeln()

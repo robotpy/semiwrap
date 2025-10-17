@@ -46,6 +46,7 @@ def _gensig(cls_qualname: T.Optional[str], fn: FunctionContext) -> str:
 
 def _genmethod(
     r: RenderBuffer,
+    varname: str,
     cls_qualname: T.Optional[str],
     fn: FunctionContext,
     trampoline_qualname: T.Optional[str],
@@ -63,11 +64,11 @@ def _genmethod(
         r.rel_indent(2)
 
     if fn.operator:
-        r.writeln(f".def({fn.cpp_code}")
+        r.writeln(f"{varname}.def({fn.cpp_code}")
         arg_params = []
     elif fn.is_constructor:
         if fn.cpp_code:
-            r.writeln(f".def(py::init({fn.cpp_code})")
+            r.writeln(f"{varname}.def(py::init({fn.cpp_code})")
         elif fn.genlambda:
             genlambda = fn.genlambda
             arg_params = genlambda.in_params
@@ -81,22 +82,22 @@ def _genmethod(
                 genlambda,
                 call_qual,
                 tmpl,
-                f'.def_static("{fn.py_name}"',
+                f'{varname}.def_static("{fn.py_name}"',
                 lam_params,
             )
         elif trampoline_qualname:
             r.writeln(
-                f".def(py::init_alias<{', '.join(param.full_cpp_type for param in arg_params)}>()"
+                f"{varname}.def(py::init_alias<{', '.join(param.full_cpp_type for param in arg_params)}>()"
             )
         else:
             r.writeln(
-                f".def(py::init<{', '.join(param.full_cpp_type for param in arg_params)}>()"
+                f"{varname}.def(py::init<{', '.join(param.full_cpp_type for param in arg_params)}>()"
             )
     else:
         if fn.is_static_method:
-            fn_def = f'.def_static("{fn.py_name}"'
+            fn_def = f'{varname}.def_static("{fn.py_name}"'
         else:
-            fn_def = f'.def("{fn.py_name}"'
+            fn_def = f'{varname}.def("{fn.py_name}"'
 
         if fn.cpp_code:
             cpp_code = inspect.cleandoc(fn.cpp_code)
@@ -163,7 +164,7 @@ def _genmethod(
 
     if fn.doc:
         r.writeln(mkdoc("  , py::doc(", fn.doc, ")"))
-    r.writeln(")")
+    r.writeln(");")
 
     if fn.ifdef:
         r.rel_indent(-2)
@@ -201,16 +202,18 @@ def _gen_method_lambda(
 
 def genmethod(
     r: RenderBuffer,
+    varname: str,
     cls_qualname: T.Optional[str],
     fn: FunctionContext,
     trampoline_qualname: T.Optional[str],
 ):
     if not fn.template_impls:
-        _genmethod(r, cls_qualname, fn, trampoline_qualname, "")
+        _genmethod(r, varname, cls_qualname, fn, trampoline_qualname, "")
     else:
         for tmpl in fn.template_impls:
             _genmethod(
                 r,
+                varname,
                 cls_qualname,
                 fn,
                 trampoline_qualname,
@@ -218,21 +221,21 @@ def genmethod(
             )
 
 
-def _genprop(r: RenderBuffer, qualname: str, prop: PropContext):
+def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
     doc = ""
     if prop.doc:
         doc = mkdoc(", py::doc(", prop.doc, ")")
 
     if prop.array_size:
         r.writeln(
-            f'.def_property_readonly("{prop.py_name}", []({qualname}& self) {{\n'
+            f'{varname}.def_property_readonly("{prop.py_name}", []({qualname}& self) {{\n'
             f"   return py::memoryview::from_buffer(\n"
             f"      &self.{prop.cpp_name}, sizeof({prop.cpp_type}),\n"
             f"      py::format_descriptor<{prop.cpp_type}>::value,\n"
             f"      {{{prop.array_size}}}, {{sizeof({prop.cpp_type})}},\n"
             f'      { "true" if prop.readonly else "false" }\n'
             "   );\n"
-            f"}}{doc})"
+            f"}}{doc});"
         )
     elif prop.array:
         # cannot sensibly autowrap an array of incomplete size
@@ -240,7 +243,7 @@ def _genprop(r: RenderBuffer, qualname: str, prop: PropContext):
     elif prop.reference or prop.bitfield:
         propdef = ".def_property_readonly" if prop.readonly else ".def_property"
 
-        r.writeln(f'{propdef}("{prop.py_name}",')
+        r.writeln(f'{varname}{propdef}("{prop.py_name}",')
         with r.indent(2):
             lines = [
                 f"[](const {qualname}& self) -> {prop.cpp_type} {{ return self.{prop.cpp_name}; }}"
@@ -253,14 +256,16 @@ def _genprop(r: RenderBuffer, qualname: str, prop: PropContext):
                 lines.append(doc[2:])
 
             r.writeln(",\n".join(lines))
-        r.writeln(")")
+        r.writeln(");")
 
     else:
         propdef = ".def_readonly" if prop.readonly else ".def_readwrite"
         if prop.static:
             propdef = f"{propdef}_static"
 
-        r.writeln(f'{propdef}("{prop.py_name}", &{qualname}::{prop.cpp_name}{doc})')
+        r.writeln(
+            f'{varname}{propdef}("{prop.py_name}", &{qualname}::{prop.cpp_name}{doc});'
+        )
 
 
 def enum_decl(r: RenderBuffer, enum: EnumContext, varname: str):
@@ -411,31 +416,28 @@ def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
     if cls.doc:
         r.writeln(f'{varname}.doc() = {mkdoc("", cls.doc, "")};')
 
-    r.writeln(varname)
-    with r.indent():
+    if cls.add_default_constructor:
+        r.writeln(f"{varname}.def(py::init<>(), release_gil());")
 
-        if cls.add_default_constructor:
-            r.writeln(".def(py::init<>(), release_gil())")
+    for fn in cls.wrapped_public_methods:
+        genmethod(r, varname, cls.full_cpp_name, fn, None)
 
-        for fn in cls.wrapped_public_methods:
-            genmethod(r, cls.full_cpp_name, fn, None)
+    if cls.trampoline is not None:
+        for fn in cls.wrapped_protected_methods:
+            genmethod(r, varname, cls.full_cpp_name, fn, cls.trampoline.var)
 
-        if cls.trampoline is not None:
-            for fn in cls.wrapped_protected_methods:
-                genmethod(r, cls.full_cpp_name, fn, cls.trampoline.var)
+    for prop in cls.public_properties:
+        _genprop(r, varname, cls.full_cpp_name, prop)
 
-        for prop in cls.public_properties:
-            _genprop(r, cls.full_cpp_name, prop)
-
-        if cls.trampoline is not None:
-            for prop in cls.protected_properties:
-                _genprop(r, cls.trampoline.full_cpp_name, prop)
+    if cls.trampoline is not None:
+        for prop in cls.protected_properties:
+            _genprop(r, varname, cls.trampoline.full_cpp_name, prop)
 
     if cls.inline_code:
-        r.writeln()
-        r.write_trim(cls.inline_code)
-
-    r.writeln(";")
+        r.writeln(varname)
+        with r.indent():
+            r.write_trim(cls.inline_code)
+        r.writeln(";")
 
     if cls.unnamed_enums:
         r.writeln()
