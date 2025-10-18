@@ -20,3 +20,8 @@ templates:
     qualname: TTClassWithFn
     params:
     - 2
+
+functions:
+  tmpl_fn:
+    template_impls:
+    - ["int"]
