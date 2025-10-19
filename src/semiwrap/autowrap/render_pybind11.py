@@ -137,7 +137,7 @@ def _genmethod(
                 fn_cast = ""
                 paren = ""
 
-            if tmpl:
+            if tmpl and fn_ns:
                 fn_name = f"template {fn.cpp_name}"
             else:
                 fn_name = fn.cpp_name
