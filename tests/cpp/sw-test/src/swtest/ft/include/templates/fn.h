@@ -24,6 +24,11 @@ auto abbrv_fn_tmpl(auto t) {
     return t + 2;
 }
 
+template <int X>
+int tmpl_fn_add(int x) {
+    return x + X;
+}
+
 template <typename T>
 T tmpl_fn(T t) {
     return t + 1;
