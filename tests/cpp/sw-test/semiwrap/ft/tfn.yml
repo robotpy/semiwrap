@@ -22,6 +22,10 @@ templates:
     - 2
 
 functions:
+  abbrv_fn_tmpl:
+    template_impls:
+    - ["int"]
+
   tmpl_fn:
     template_impls:
     - ["int"]
