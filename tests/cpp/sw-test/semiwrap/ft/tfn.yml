@@ -26,6 +26,10 @@ functions:
     template_impls:
     - ["int"]
 
+  tmpl_fn_add:
+    template_impls:
+    - ["1"]
+
   tmpl_fn:
     template_impls:
     - ["int"]
