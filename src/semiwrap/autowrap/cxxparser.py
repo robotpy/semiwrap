@@ -50,6 +50,7 @@ from cxxheaderparser.types import (
     PQNameSegment,
     Reference,
     TemplateInst,
+    TemplateTypeParam,
     Type,
     Typedef,
     UsingAlias,
@@ -78,6 +79,7 @@ from .context import (
     Documentation,
     EnumContext,
     EnumeratorContext,
+    FnTemplateImpl,
     FunctionContext,
     GeneratedLambda,
     HeaderContext,
@@ -1356,6 +1358,7 @@ class AutowrapVisitor:
         # keep track of param name changes so we can automatically update
         # documentation
         param_remap: typing.Dict[str, str] = {}
+        auto_types: typing.List[str] = []
 
         #
         # Process parameters
@@ -1369,11 +1372,13 @@ class AutowrapVisitor:
             po = param_override.get(p_name, _default_param_data)
 
             pctx = self._on_fn_param(
+                i,
                 p,
                 p_name,
                 fn_disable_none,
                 po,
                 param_remap,
+                auto_types,
             )
 
             all_params.append(pctx)
@@ -1408,27 +1413,76 @@ class AutowrapVisitor:
         if data.keepalive is not None:
             keepalives = data.keepalive
 
-        # Check for user errors
-        if not self.report_only:
-            if fn.template:
-                if data.template_impls is None and not data.cpp_code:
-                    raise ValueError(
-                        f"{fn_name}: must specify template impls for function template"
-                    )
-            else:
-                if data.template_impls is not None:
-                    raise ValueError(
-                        f"{fn_name}: cannot specify template_impls for non-template functions"
-                    )
-
         #
         # fn_retval is needed for gensig, vcheck assertions
         # - gensig is not computable here
         #
+        has_auto_retval = False
         fn_retval: typing.Optional[str] = None
         if fn.return_type:
             fn_retval = fn.return_type.format()
-            self._add_type_caster(fn.return_type)
+            if fn_retval != "auto":
+                self._add_type_caster(fn.return_type)
+            else:
+                fn_retval = "AutoFnReturnType"
+                has_auto_retval = True
+                auto_types.append(fn_retval)
+
+        template_impls: typing.Optional[typing.List[FnTemplateImpl]] = None
+
+        # Check for user errors
+        if not self.report_only:
+            fn_template = fn.template
+            user_template_impls = data.template_impls
+
+            if fn_template:
+                if user_template_impls is None and not data.cpp_code:
+                    raise ValueError(
+                        f"{fn_name}: must specify template impls for function template"
+                    )
+
+                if user_template_impls is not None:
+                    template_impls = []
+
+                    # Build the template type mapping
+                    if isinstance(fn_template, list):
+                        fn_template = fn_template[-1]
+
+                    ttypes: typing.List[str] = []
+                    for tparam in fn_template.params:
+                        if isinstance(tparam, TemplateTypeParam) and tparam.name:
+                            ttypes.append(tparam.name)
+
+                    # Append the auto parameters
+                    ttypes += auto_types
+
+                    # How many parameters does the user need to specify
+                    required_impl_items = len(fn_template.params)
+                    if has_auto_retval:
+                        required_impl_items += 1
+
+                    for i, impl in enumerate(user_template_impls):
+                        if len(impl) != required_impl_items:
+                            msg = f"{fn_name}: expected {impl} to have {required_impl_items} items"
+                            if has_auto_retval:
+                                msg = f"{msg} (type for 'auto' return value must be included)"
+                            raise ValueError(msg)
+
+                        impl_params = list(impl)
+                        if has_auto_retval:
+                            impl_params = impl_params[:-1]
+
+                        template_impls.append(
+                            FnTemplateImpl(
+                                types={k: v for k, v in zip(ttypes, impl)},
+                                params=impl_params,
+                            )
+                        )
+            else:
+                if user_template_impls is not None:
+                    raise ValueError(
+                        f"{fn_name}: cannot specify template_impls for non-template functions"
+                    )
 
         fctx = FunctionContext(
             cpp_name=fn_name,
@@ -1452,7 +1506,7 @@ class AutowrapVisitor:
             ifdef=data.ifdef,
             ifndef=data.ifndef,
             release_gil=release_gil,
-            template_impls=data.template_impls,
+            template_impls=template_impls,
             virtual_xform=data.virtual_xform,
             is_overloaded=overload_tracker,
             _fn=fn,
@@ -1466,11 +1520,13 @@ class AutowrapVisitor:
 
     def _on_fn_param(
         self,
+        i: int,
         p: Parameter,
         p_name: str,
         fn_disable_none: typing.Optional[bool],
         param_override: ParamData,
         param_remap: typing.Dict[str, str],
+        auto_types: typing.List[str],
     ):
         ptype, p_pointer, p_reference, p_const = _count_and_unwrap(p.type)
         fundamental = isinstance(ptype, Type) and _is_fundamental(
@@ -1487,6 +1543,9 @@ class AutowrapVisitor:
             cpp_type_no_const = ptype.format()
 
         cpp_type = cpp_type_no_const
+        if cpp_type == "auto":
+            cpp_type = f"AutoFnParamType__{i}"
+            auto_types.append(cpp_type)
 
         if p_pointer:
             call_name = p_name

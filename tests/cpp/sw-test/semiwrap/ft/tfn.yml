@@ -24,7 +24,7 @@ templates:
 functions:
   abbrv_fn_tmpl:
     template_impls:
-    - ["int"]
+    - ["int", "int"]
 
   tmpl_fn_add:
     template_impls:
@@ -33,3 +33,14 @@ functions:
   tmpl_fn:
     template_impls:
     - ["int"]
+
+  overloadedTFn:
+    overloads:
+      T:
+        template_impls:
+        - [double]
+      T, T:
+        ignore: true
+      auto, auto, auto:
+        template_impls:
+        - [double, double, double, double]

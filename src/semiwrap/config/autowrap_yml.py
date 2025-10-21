@@ -187,6 +187,9 @@ class OverloadData:
     #: If this is a function template, this is a list of instantiations
     #: that you wish to provide. This is a list of lists, where the inner
     #: list is the template parameters for that function
+    #:
+    #: If there are 'auto' parameters, each one is treated as a unique template
+    #: argument. If the return value is 'auto', it also must be specified here
     template_impls: Optional[List[List[str]]] = None
 
     #: Specify custom C++ code for the virtual function trampoline
