@@ -86,7 +86,7 @@ class ImportCreator:
         )
 
         content = subprocess.check_output(
-            ["black", "-", "-q"], input=stmt.encode("utf-8")
+            [sys.executable, "-m", "black", "-", "-q"], input=stmt.encode("utf-8")
         ).decode("utf-8")
 
         if write:
