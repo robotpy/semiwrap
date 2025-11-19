@@ -2,7 +2,7 @@
 Determines which casters are in the pyproject.toml and publishes them so they
 can be consumed and used by other wheels.
 
-Generates a FOO.pc file and a FOO.pybind11.json file
+Generates a FOO.pc file and a FOO.nanobind.json file
 """
 
 import pathlib
@@ -46,7 +46,7 @@ def main():
         pcfile=pathlib.Path(output_pc),
         pc_install_path=pc_install_path,
         name=caster_name,
-        desc="pybind11 type casters",
+        desc="nanobind type casters",
         version="",
         includes=cfg.includedir,
         depends=cfg.requires,

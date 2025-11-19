@@ -22,7 +22,7 @@ def render_template_inst_cpp(
         using BindType = swgen::bind_{ tmpl_data.full_cpp_name_identifier }<{tmpl_params}>;
         static std::unique_ptr<BindType> inst;
 
-        { tmpl_data.binder_typename }::{ tmpl_data.binder_typename }(py::module &m, const char * clsName)
+        { tmpl_data.binder_typename }::{ tmpl_data.binder_typename }(nb::module_ &m, const char * clsName)
         {{
           inst = std::make_unique<BindType>(m, clsName);
         }}
@@ -57,7 +57,7 @@ def render_template_inst_hpp(hctx: HeaderContext) -> str:
         r.write_trim(
             f"""
             struct {tmpl_data.binder_typename} {{
-              {tmpl_data.binder_typename}(py::module &m, const char * clsName);
+              {tmpl_data.binder_typename}(nb::module_ &m, const char * clsName);
               void finish(const char *set_doc, const char *add_doc);
             }};
         """

@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <functional>
 #include <vector>
 
 // Testcase: using directive that depends on the template parameter
