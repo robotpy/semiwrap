@@ -1,0 +1,158 @@
+{
+    "headers": [
+        {
+            "header": "nanobind/stl/array.h",
+            "types": [
+                "std::array"
+            ]
+        },
+        {
+            "header": "nanobind/stl/chrono.h",
+            "types": [
+                "std::chrono::duration",
+                "std::chrono::time_point"
+            ]
+        },
+        {
+            "header": "nanobind/stl/complex.h",
+            "types": [
+                "std::complex"
+            ]
+        },
+        {
+            "header": "nanobind/stl/filesystem.h",
+            "types": [
+                "std::filesystem::path"
+            ]
+        },
+        {
+            "header": "nanobind/stl/function.h",
+            "types": [
+                "std::function"
+            ]
+        },
+        {
+            "header": "nanobind/stl/list.h",
+            "types": [
+                "std::list"
+            ]
+        },
+        {
+            "header": "nanobind/stl/map.h",
+            "types": [
+                "std::map"
+            ]
+        },
+        {
+            "header": "nanobind/stl/optional.h",
+            "types": [
+                "std::nullopt_t",
+                "std::optional"
+            ]
+        },
+        {
+            "header": "nanobind/stl/pair.h",
+            "types": [
+                "std::pair"
+            ]
+        },
+        {
+            "header": "nanobind/stl/set.h",
+            "types": [
+                "std::set"
+            ]
+        },
+        {
+            "header": "nanobind/stl/shared_ptr.h",
+            "types": [
+                "std::shared_ptr"
+            ]
+        },
+        {
+            "header": "nanobind/stl/string_view.h",
+            "types": [
+                "std::string_view"
+            ]
+        },
+        {
+            "header": "nanobind/stl/string.h",
+            "types": [
+                "std::string"
+            ]
+        },
+        {
+            "header": "nanobind/stl/tuple.h",
+            "types": [
+                "std::tuple"
+            ]
+        },
+        {
+            "header": "nanobind/stl/unique_ptr.h",
+            "types": [
+                "std::unique_ptr"
+            ]
+        },
+        {
+            "header": "nanobind/stl/unordered_map.h",
+            "types": [
+                "std::unordered_map"
+            ]
+        },
+        {
+            "header": "nanobind/stl/unordered_set.h",
+            "types": [
+                "std::unordered_set"
+            ]
+        },
+        {
+            "header": "nanobind/stl/variant.h",
+            "types": [
+                "std::variant"
+            ]
+        },
+        {
+            "header": "nanobind/stl/vector.h",
+            "types": [
+                "std::vector"
+            ]
+        },
+        {
+            "header": "nanobind/stl/wstring.h",
+            "types": [
+                "std::wstring"
+            ]
+        },
+        {
+            "header": "nanobind/eigen/dense.h",
+            "types": [
+                "Eigen::Block",
+                "Eigen::DiagonalMatrix",
+                "Eigen::MatrixBase",
+                "Eigen::Matrix",
+                "Eigen::Matrix2d",
+                "Eigen::Matrix3d",
+                "Eigen::MatrixXcd",
+                "Eigen::MatrixXd",
+                "Eigen::MatrixXdR",
+                "Eigen::MatrixXi",
+                "Eigen::MatrixXf",
+                "Eigen::Ref",
+                "Eigen::Matrix4d",
+                "Eigen::RowVectorXf",
+                "Eigen::Vector",
+                "Eigen::Vector2d",
+                "Eigen::Vector3d",
+                "Eigen::VectorXd",
+                "Eigen::VectorXf",
+                "Eigen::VectorXcf"
+            ]
+        },
+        {
+            "header": "nanobind/eigen/sparse.h",
+            "types": [
+                "Eigen::SparseMatrix",
+                "Eigen::SparseView"
+            ]
+        }
+    ]
+}

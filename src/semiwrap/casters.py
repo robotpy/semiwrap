@@ -5,7 +5,7 @@ import typing as T
 
 from .config.util import parse_input
 
-PKGCONF_CASTER_EXT = ".pybind11.json"
+PKGCONF_CASTER_EXT = ".nanobind.json"
 
 #
 # JSON caster data
@@ -19,11 +19,11 @@ class TypeCasterJsonHeader:
     default_arg_cast: bool = False
 
 
-#: content of .pybind11.json
+#: content of .nanobind.json
 @dataclasses.dataclass
 class TypeCasterJsonData:
     """
-    Stored in *.pybind11.json
+    Stored in *.nanobind.json
     """
 
     headers: T.List[TypeCasterJsonHeader] = dataclasses.field(default_factory=list)

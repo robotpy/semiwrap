@@ -58,15 +58,16 @@ def test_fn_disable_all_none():
     assert ft.fnParamDisableAllNone(ft.Param(), ft.Param())
 
 
+def test_fn_enable_all_none():
+    assert not ft.fnParamEnableAllNone(None, None)
+    assert not ft.fnParamEnableAllNone(None, ft.Param())
+    assert not ft.fnParamEnableAllNone(ft.Param(), None)
+
+    assert ft.fnParamEnableAllNone(ft.Param(), ft.Param())
+
+
 def _callable():
     pass
-
-
-def test_fn_auto_disable_none():
-    with pytest.raises(TypeError):
-        ft.fnParamAutoDisableNone(None)
-
-    assert ft.fnParamAutoDisableNone(_callable)
 
 
 def test_fn_allow_none():

@@ -21,14 +21,14 @@ def test_ignore_cls():
 def test_ignore_cls_enum():
     assert not hasattr(ft.ClassWithIgnored, "IgnoredInnerEnum")
     assert not hasattr(ft.ClassWithIgnored.InnerEnumWithIgnored, "Param1")
-    assert ft.ClassWithIgnored.InnerEnumWithIgnored.Param2 == 2
+    assert ft.ClassWithIgnored.InnerEnumWithIgnored.Param2.value == 2
 
 
 def test_ignored_enums():
     assert not hasattr(ft._ft, "IgnoredEnum")
 
     assert not hasattr(ft.EnumWithIgnored, "Ignored")
-    assert ft.EnumWithIgnored.NotIgnored == 1
+    assert ft.EnumWithIgnored.NotIgnored.value == 1
 
 
 #
@@ -43,7 +43,7 @@ def test_ignored_by_default_fn():
 
 def test_ignored_by_default_enum():
     assert not hasattr(ft._ft, "id_IgnoredEnum")
-    assert ft._ft.id_EnabledEnum.Param3 == 3
+    assert ft._ft.id_EnabledEnum.Param3.value == 3
 
 
 def test_ignored_by_default_class():
@@ -51,5 +51,5 @@ def test_ignored_by_default_class():
     o = ft._ft.id_EnabledClass()
     assert o.fn() == 3
     assert o.fn_missing() == 4
-    assert ft._ft.id_EnabledClass.InnerEnum.Param6 == 6
-    assert ft._ft.id_EnabledClass.InnerEnumMissing.Param7 == 7
+    assert ft._ft.id_EnabledClass.InnerEnum.Param6.value == 6
+    assert ft._ft.id_EnabledClass.InnerEnumMissing.Param7.value == 7

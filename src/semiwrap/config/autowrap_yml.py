@@ -28,10 +28,9 @@ class ParamData:
     #: Disable default value
     no_default: Optional[bool] = False
 
-    #: Disallow implicit conversions from None. This defaults to True for built
-    #: in types and types that are obviously std::function (does not handle all
-    #: cases, in which case this should be explicitly specified)
-    disable_none: Optional[bool] = None
+    #: By default nanobind disallows implicit conversions from None. Set
+    #: this to true to allow them.
+    enable_none: Optional[bool] = None
 
     #: Disables a default cast caused by ``default_arg_cast``
     disable_type_caster_default_cast: bool = False
@@ -142,9 +141,9 @@ class OverloadData:
     #: Text to append to the (autoconverted) docstring for the function
     doc_append: Optional[str] = None
 
-    #: Disallow implicit conversions from None for all parameters. See also
-    #: ``disable_none`` in ParamData.
-    disable_none: Optional[bool] = None
+    #: Enable implicit conversions from None for all parameters. See also
+    #: ``enable_none`` in ParamData.
+    enable_none: Optional[bool] = None
 
     #: If True, prepends an underscore to the python name
     internal: bool = False
@@ -198,7 +197,7 @@ class OverloadData:
     #: Specify a transformation lambda to be used when this virtual function
     #: is called from C++. This inline code should be a lambda that has the same
     #: arguments as the original C++ virtual function, except the first argument
-    #: will be a py::function with the python overload
+    #: will be a nb::callable with the python overload
     #:
     #: cpp_code should also be specified for this to be useful
     #:
@@ -212,7 +211,7 @@ class OverloadData:
     #:        return "string";
     #:      }
     #:    virtual_xform: |
-    #:      [](py::function fn, MyClass* self, std::iostream &is) {
+    #:      [](nb::callable fn, MyClass* self, std::iostream &is) {
     #:         std::string d = py::cast(fn());
     #:         is << d;
     #:      }
@@ -396,7 +395,7 @@ class ClassData:
     #: If the class derives from classes that participate in multiple
     #: inheritance, pybind11 won't detect it automatically, so this
     #: flag is needed.
-    force_multiple_inheritance: bool = False
+    # force_multiple_inheritance: bool = False
 
     #: If there are circular dependencies, this will help you resolve them
     #: manually. TODO: make it so we don't need this

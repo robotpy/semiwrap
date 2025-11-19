@@ -7,12 +7,6 @@ def test_docstrings_enum():
         """
         An enum that is documented
         Maybe it's not great docs, but it's something.
-
-        Members:
-
-          Value1 : value 1 doc
-        
-          Value2 : value 2 doc??
         """
     )
 
@@ -29,7 +23,7 @@ def test_docstrings_cls():
 def test_docstrings_meth():
     assert inspect.getdoc(ft.DocClass.fn) == inspect.cleandoc(
         """
-        fn(self: swtest.ft._ft.DocClass) -> None
+        fn(self) -> None
         
         Function with docstring for good measure
         """
@@ -39,7 +33,7 @@ def test_docstrings_meth():
 def test_docstrings_meth_kwd():
     assert inspect.getdoc(ft.DocClass.fn2) == inspect.cleandoc(
         """
-        fn2(self: swtest.ft._ft.DocClass, from_: typing.SupportsInt) -> None
+        fn2(self, from_: int) -> None
         
         Function with parameter that's a python keyword
 
@@ -51,7 +45,7 @@ def test_docstrings_meth_kwd():
 def test_docstrings_meth_rename():
     assert inspect.getdoc(ft.DocClass.fn3) == inspect.cleandoc(
         """
-        fn3(self: swtest.ft._ft.DocClass, ohai: typing.SupportsInt) -> None
+        fn3(self, ohai: int) -> None
         
         Function with renamed parameter
 
@@ -83,15 +77,6 @@ def test_docstrings_append():
         An enum that is documented
         Maybe it's not great docs, but it's something.
         Useful extra information about this enum
-
-
-        Members:
-
-          Value1 : value 1 doc
-          Useful extra information about this value
-          
-        
-          Value2 : value 2 doc??
         """
     )
 
@@ -104,7 +89,7 @@ def test_docstrings_append():
     )
     assert inspect.getdoc(ft.DocAppendClass.fn) == inspect.cleandoc(
         """
-        fn(self: swtest.ft._ft.DocAppendClass) -> None
+        fn(self) -> None
         
         Function with docstring for good measure
         Useful extra information about this fn

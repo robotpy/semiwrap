@@ -15,7 +15,7 @@ import sys
 import tempfile
 import typing as T
 
-import pybind11_stubgen
+import nanobind.stubgen
 
 
 class _PackageFinder:
@@ -34,51 +34,8 @@ class _PackageFinder:
             return importlib.util.spec_from_file_location(fullname, m)
 
 
-def _write_pyi(
-    package_name, generated_pyi: T.Dict[pathlib.PurePosixPath, pathlib.Path]
-):
-
-    # We can't control where stubgen writes files, so tell it to output
-    # to a temporary directory and then we copy the files from there to
-    # our desired location
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir_pth = pathlib.Path(tmpdir)
-
-        # Call pybind11-stubgen
-        sys.argv = [
-            "<dummy>",
-            "--exit-code",
-            "--ignore-invalid-expressions=<.*>",
-            "--root-suffix=",
-            "-o",
-            tmpdir,
-            package_name,
-        ]
-
-        # Create the parent directories in the temporary directory
-        for infile in generated_pyi.keys():
-            (tmpdir_pth / infile).parent.mkdir(parents=True, exist_ok=True)
-
-        # Fix typing.Annotated bug in < 3.8
-        # - the Right Fix would be to emit typing_extensions.Annotated in pybind11,
-        #   but Python 3.8 support will go away soon so not worth it
-        if sys.version_info < (3, 9):
-            import typing_extensions
-
-            T.Annotated = typing_extensions.Annotated
-
-        pybind11_stubgen.main()
-
-        # stubgen doesn't take a direct output filename, so move the file
-        # to our desired location
-        for infile, output in generated_pyi.items():
-            output.unlink(missing_ok=True)
-            shutil.move(tmpdir_pth / infile, output)
-
-
 def main():
 
-    generated_pyi: T.Dict[pathlib.PurePosixPath, pathlib.Path] = {}
     argv = sys.argv
 
     if len(argv) < 3:
@@ -87,20 +44,11 @@ def main():
 
     # Package name first
     package_name = argv[1]
-
-    # Output file map: input output
-    idx = 2
-    while idx < len(argv):
-        if argv[idx] == "--":
-            idx += 1
-            break
-
-        generated_pyi[pathlib.PurePosixPath(argv[idx])] = pathlib.Path(argv[idx + 1])
-        idx += 2
+    output_file = argv[2]
 
     # Arguments are used to set up the package map
     package_map = _PackageFinder.mapping
-    for i in range(idx, len(argv), 2):
+    for i in range(3, len(argv), 2):
         # python 3.9 requires paths to be resolved
         package_map[argv[i]] = os.fspath(pathlib.Path(argv[i + 1]).resolve())
 
@@ -120,7 +68,8 @@ def main():
 
     sys.meta_path.insert(0, _PackageFinder)
 
-    _write_pyi(package_name, generated_pyi)
+    # TODO: use the stubgen API directly? This seems easier.
+    nanobind.stubgen.main(["-m", package_name, "-o", output_file])
 
 
 if __name__ == "__main__":

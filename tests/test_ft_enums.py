@@ -3,12 +3,12 @@ import pytest
 
 
 def test_enums():
-    # normal enums convert to integers
-    assert ft.GEnum.GE1 == 1
-    assert ft.NSGEnum.NSGE2 == 2
-    assert ft.EnumContainer.InnerEnum.IE1 == 1
-    assert ft.NSEnumContainer.InnerEnum.NSIE1 == 1
-    assert ft.NSEnumContainer2.InnerEnumContainer.MoreInnerEnum.NSIEMIE1 == 1
+    # normal enums are actual python enums, so use .value
+    assert ft.GEnum.GE1.value == 1
+    assert ft.NSGEnum.NSGE2.value == 2
+    assert ft.EnumContainer.InnerEnum.IE1.value == 1
+    assert ft.NSEnumContainer.InnerEnum.NSIE1.value == 1
+    assert ft.NSEnumContainer2.InnerEnumContainer.MoreInnerEnum.NSIEMIE1.value == 1
 
     # Unnamed enums are hoisted as integers to their scope
     # - not supported yet for globals
@@ -16,9 +16,9 @@ def test_enums():
     # assert ft._ft.NSUGEX == 5
     assert ft.EnumContainer.UEX == 4
 
-    # enum class are specific types
-    assert "GCE1" in ft.GCEnum.GCE1.__members__
-    assert "NSGE2" in ft.NSGCEnum.NSGE2.__members__
+    # enum class act exactly the same
+    assert "GCE1" in ft.GCEnum.__members__
+    assert "NSGE2" in ft.NSGCEnum.__members__
     assert "IEC1" in ft.EnumContainer.InnerCEnum.__members__
     assert "NSIEC1" in ft.NSEnumContainer.InnerCEnum.__members__
     assert (
@@ -28,9 +28,9 @@ def test_enums():
 
 def test_enum_strip_prefix():
     # 1 isn't a valid identifier, so it's not stripped
-    assert ft.StripPrefixEnum.STRIP_1 == 1
+    assert ft.StripPrefixEnum.STRIP_1.value == 1
     # STRIP_B is converted to B
-    assert ft.StripPrefixEnum.B == 2
+    assert ft.StripPrefixEnum.B.value == 2
 
 
 def test_enum_math():

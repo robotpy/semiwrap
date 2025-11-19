@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import codecs
 import os
 import pathlib
-import re
 import sys
 import typing as T
 
@@ -22,31 +20,9 @@ from .makeplan import (
     CompilerInfo,
     makeplan,
 )
+from .render_meson_util import make_meson_string, make_include_path_str
+from .render_meson_nanobind import render_nanobind_dep
 from .util import maybe_write_file, relpath_walk_up
-
-# String escaping stolen from meson source code, Apache 2.0 license
-# This is the regex for the supported escape sequences of a regular string
-# literal, like 'abc\x00'
-ESCAPE_SEQUENCE_SINGLE_RE = re.compile(
-    r"""
-    ( \\U[A-Fa-f0-9]{8}   # 8-digit hex escapes
-    | \\u[A-Fa-f0-9]{4}   # 4-digit hex escapes
-    | \\x[A-Fa-f0-9]{2}   # 2-digit hex escapes
-    | \\[0-7]{1,3}        # Octal escapes
-    | \\N\{[^}]+\}        # Unicode characters by name
-    | \\[\\'abfnrtv]      # Single-character escapes
-    )""",
-    re.UNICODE | re.VERBOSE,
-)
-
-
-def _decode_match(match: T.Match[str]) -> str:
-    return codecs.decode(match.group(0).encode(), "unicode_escape")
-
-
-def _make_string(s: str):
-    s = ESCAPE_SEQUENCE_SINGLE_RE.sub(_decode_match, s)
-    return f"'{s}'"
 
 
 VarTypes = T.Union[
@@ -77,10 +53,10 @@ class VarCache:
             if isinstance(item, InputFile):
                 # .. this probably isn't right either, what should this be relative to?
                 # .. TODO should use files()? but maybe only if this is actually a variable
-                return _make_string(item.path.resolve().as_posix())
+                return make_meson_string(item.path.resolve().as_posix())
                 # var = f"sw_in_{self.idx}"
             elif isinstance(item, OutputFile):
-                return _make_string(item.name)
+                return make_meson_string(item.name)
                 # var = f"sw_out_{self.idx}"
             elif isinstance(item, BuildTarget):
                 var = f"_sw_target_{self.idx}"
@@ -114,9 +90,9 @@ def _render_build_target(r: RenderBuffer, vc: VarCache, bt: BuildTarget):
 
     for arg in bt.args:
         if isinstance(arg, str):
-            cmd.append(_make_string(arg))
+            cmd.append(make_meson_string(arg))
         elif isinstance(arg, pathlib.Path):
-            cmd.append(_make_string(arg.resolve().as_posix()))
+            cmd.append(make_meson_string(arg.resolve().as_posix()))
         elif isinstance(arg, (BuildTarget, InputFile)):
             cmd.append(f"'@INPUT{len(tinput)}@'")
             tinput.append(vc.getvar(arg))
@@ -129,7 +105,7 @@ def _render_build_target(r: RenderBuffer, vc: VarCache, bt: BuildTarget):
         elif isinstance(arg, Depfile):
             assert depfile is None, bt
             cmd.append("'@DEPFILE@'")
-            depfile = _make_string(arg.name)
+            depfile = make_meson_string(arg.name)
         elif isinstance(arg, ExtensionModule):
             cmd.append(f"'@INPUT{len(tinput)}@'")
             tinput.append(vc.getvar(arg))
@@ -150,7 +126,7 @@ def _render_build_target(r: RenderBuffer, vc: VarCache, bt: BuildTarget):
             r.writeln(f"depfile: {depfile},")
 
         if bt.install_path is not None:
-            install_path = _make_string(bt.install_path.as_posix())
+            install_path = make_meson_string(bt.install_path.as_posix())
             r.writeln(
                 f"install_dir: sw_py.get_install_dir(pure: false) / {install_path},"
             )
@@ -164,18 +140,6 @@ def _render_include_directories(
     incs: T.Sequence[T.Union[pathlib.Path, TrampolineIncludeRoot]],
     meson_build_path: T.Optional[pathlib.Path],
 ):
-    # meson wants these to be relative to meson.build
-    # - only can do that if we're writing an output file
-    if meson_build_path:
-        meson_build_parent = meson_build_path.parent
-        incs = [
-            (
-                relpath_walk_up(p, meson_build_parent)
-                if isinstance(p, pathlib.Path)
-                else p
-            )
-            for p in incs
-        ]
 
     inc_items: T.List[str] = []
     for inc in incs:
@@ -185,7 +149,9 @@ def _render_include_directories(
             # the build tree are found before any stale copies in the source tree.
             inc_items.append("include_directories('.')")
         else:
-            inc_items.append(_make_string(inc.as_posix()))
+            # meson wants these to be relative to meson.build
+            # - only can do that if we're writing an output file
+            inc_items.append(make_include_path_str(inc, meson_build_path))
 
     if inc_items:
         _render_meson_args(r, "include_directories", inc_items)
@@ -218,7 +184,7 @@ def _render_module_stage0(
             r.writeln("compile_args: [")
             with r.indent():
                 for dname, dvalue in m.defines:
-                    r.writeln(_make_string(f"-D{dname}={dvalue}"))
+                    r.writeln(make_meson_string(f"-D{dname}={dvalue}"))
             r.writeln("],")
 
         if m.sources:
@@ -235,7 +201,7 @@ def _render_module_stage0(
                 if isinstance(d, LocalDependency):
                     depnames.append(vc.getvar(d))
                 else:
-                    depnames.append(f"dependency({_make_string(d)})")
+                    depnames.append(f"dependency({make_meson_string(d)})")
 
             deps = ", ".join(depnames)
             r.writeln(f"dependencies: [{deps}],")
@@ -256,8 +222,8 @@ def _render_module_stage1(
     # variables generated here should be deterministic so that users can
     # use it directly if they wish
 
-    subdir = _make_string(m.install_path.as_posix())
-    module_name = _make_string(m.package_name.split(".")[-1])
+    subdir = make_meson_string(m.install_path.as_posix())
+    module_name = make_meson_string(m.package_name.split(".")[-1])
     mvar = vc.getvar(m)
 
     r.writeln(f"# {m.package_name}")
@@ -329,6 +295,13 @@ def render_meson(
             meson.get_compiler('cpp').cmd_array()
         ]
 
+    """
+    )
+
+    render_nanobind_dep(r0, stage0_path)
+
+    r0.write_trim(
+        """
         #
         # internal custom targets for generating wrappers
         #
@@ -371,7 +344,7 @@ def render_meson(
 
     if macros:
         for macro in macros:
-            macro_name = _make_string(macro.name)
+            macro_name = make_meson_string(macro.name)
             r0.writeln(
                 f"{vc.getvar(macro)} = meson.get_compiler('cpp').get_define({macro_name})"
             )
@@ -398,7 +371,7 @@ def render_meson(
                         if isinstance(dep, LocalDependency):
                             deps.append(vc.getvar(dep))
                         else:
-                            deps.append(f"dependency({_make_string(dep)})")
+                            deps.append(f"dependency({make_meson_string(dep)})")
 
                     depstrs = ", ".join(deps)
                     r0.writeln(f"dependencies: [{depstrs}],")

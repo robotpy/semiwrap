@@ -7,15 +7,18 @@ functions:
   fnParamDisableNone:
     param_override:
       p:
-        disable_none: true
+        enable_none: false
 
   fnParamDisableAllNone:
-    disable_none: true
+    enable_none: false
+
+  fnParamEnableAllNone:
+    enable_none: true
 
   fnParamAllowNone:
     param_override:
       fn:
-        disable_none: false
+        enable_none: true
 
   fnParamDisableDefault:
     param_override:
