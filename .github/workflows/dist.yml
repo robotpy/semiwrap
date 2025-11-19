@@ -87,6 +87,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [setup_concurrency, build]
     strategy:
+      fail-fast: false
       max-parallel: ${{ fromJSON(needs.setup_concurrency.outputs.max-parallel).v }}
       matrix:
         os: ["ubuntu-22.04", "macos-14", "windows-2022"]

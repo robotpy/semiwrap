@@ -1,7 +1,7 @@
 from .buffer import RenderBuffer
 from .context import HeaderContext
 
-from . import render_pybind11 as rpybind11
+from . import render_nanobind as rnbind
 from .render_cls_prologue import render_class_prologue
 
 
@@ -57,17 +57,17 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
     with r.indent():
         for cls in hctx.classes:
             if not cls.template:
-                rpybind11.cls_user_using(r, cls)
-                rpybind11.cls_consts(r, cls)
+                rnbind.cls_user_using(r, cls)
+                rnbind.cls_consts(r, cls)
 
         if hctx.subpackages:
             r.writeln()
             for vname in hctx.subpackages.values():
-                r.writeln(f"py::module {vname};")
+                r.writeln(f"nb::module_ {vname};")
 
         # enums
         for index, enum in enumerate(hctx.enums, start=1):
-            rpybind11.enum_decl(r, enum, f"enum{index}")
+            rnbind.enum_decl(r, enum, f"enum{index}")
 
         # template decls
         for tmpl_data in hctx.template_instances:
@@ -78,7 +78,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
         for cls in hctx.classes:
             if cls.template is None:
                 r.writeln()
-                rpybind11.cls_decl(r, cls)
+                rnbind.cls_decl(r, cls)
             elif cls.template.instances:
                 r.writeln()
                 for tmpl_data in cls.template.instances:
@@ -86,8 +86,8 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                         f"swgen::{tmpl_data.binder_typename} {tmpl_data.var_name};"
                     )
 
-        r.writeln("\npy::module &m;\n")
-        r.writeln(f"semiwrap_{hctx.hname}_initializer(py::module &m) :")
+        r.writeln("\nnb::module_ &m;\n")
+        r.writeln(f"semiwrap_{hctx.hname}_initializer(nb::module_ &m) :")
 
         with r.indent():
             for pkg, vname in hctx.subpackages.items():
@@ -95,7 +95,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
 
             for index, enum in enumerate(hctx.enums, start=1):
                 r.writeln(
-                    f"enum{index}({rpybind11.enum_init_args(enum.scope_var, enum)}),"
+                    f"enum{index}({rnbind.enum_init_args(enum.scope_var, enum)}),"
                 )
 
             for tmpl_data in hctx.template_instances:
@@ -106,7 +106,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
 
             for cls in hctx.classes:
                 if not cls.template:
-                    rpybind11.cls_init(r, cls, f'"{cls.py_name}"')
+                    rnbind.cls_init(r, cls, f'"{cls.py_name}"')
                 else:
                     for tmpl_data in cls.template.instances:
                         r.writeln(
@@ -124,12 +124,12 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 for index, enum in enumerate(hctx.enums, start=1):
                     r.writeln(f"enum{index}")
                     with r.indent():
-                        rpybind11.enum_def(r, enum.scope_var, enum)
+                        rnbind.enum_def(r, enum.scope_var, enum)
 
                 for cls in hctx.classes:
-                    rpybind11.cls_def_enum(r, cls, cls.var_name)
+                    rnbind.cls_def_enum(r, cls, cls.var_name)
                     for ccls in cls.child_classes:
-                        rpybind11.cls_def_enum(r, ccls, ccls.var_name)
+                        rnbind.cls_def_enum(r, ccls, ccls.var_name)
             r.writeln("}")
         else:
             r.writeln("{}")
@@ -143,12 +143,12 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 r.writeln(f"\n{tdata.var_name}.finish(")
                 with r.indent():
                     if tdata.doc_set:
-                        r.writeln(f'{rpybind11.mkdoc("", tdata.doc_set, "")},')
+                        r.writeln(f'{rnbind.mkdoc("", tdata.doc_set)},')
                     else:
                         r.writeln("nullptr,")
 
                     if tdata.doc_add:
-                        r.writeln(rpybind11.mkdoc("", tdata.doc_add, ""))
+                        r.writeln(rnbind.mkdoc("", tdata.doc_add))
                     else:
                         r.writeln("nullptr")
                 r.writeln(");")
@@ -158,8 +158,8 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 if not cls.template:
                     r.writeln("{")
                     with r.indent():
-                        rpybind11.cls_auto_using(r, cls)
-                        rpybind11.cls_def(r, cls, cls.var_name)
+                        rnbind.cls_auto_using(r, cls)
+                        rnbind.cls_def(r, cls, cls.var_name)
                     r.writeln("}")
 
             # Global methods
@@ -167,7 +167,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 r.writeln()
                 for fn in hctx.functions:
                     if not fn.ignore_py:
-                        rpybind11.genmethod(r, fn.scope_var, None, fn, None)
+                        rnbind.genmethod(r, fn.scope_var, None, fn, None)
 
             if hctx.inline_code:
                 r.writeln()
@@ -180,7 +180,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
         "\n"
         f"static std::unique_ptr<semiwrap_{hctx.hname}_initializer> cls;\n"
         "\n"
-        f"void begin_init_{hctx.hname}(py::module &m) {{\n"
+        f"void begin_init_{hctx.hname}(nb::module_ &m) {{\n"
         f"  cls = std::make_unique<semiwrap_{hctx.hname}_initializer>(m);\n"
         "}\n"
         "\n"
