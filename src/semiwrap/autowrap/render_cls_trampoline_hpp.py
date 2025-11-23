@@ -446,7 +446,7 @@ def _render_cls_template_impl(
                   {cls.var_name}.doc() = set_doc;
                 }}
                 if (add_doc) {{
-                    auto doc = {cls.var_name}.doc();
+                    nb::handle doc = {cls.var_name}.doc();
                     if (doc.is_none()) {{
                         {cls.var_name}.doc() = add_doc;
                     }} else {{
