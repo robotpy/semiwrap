@@ -26,6 +26,8 @@ classes:
   IgnoredClassWithEnum:
     ignore: true
   ClassWithIgnored:
+    force_type_casters:
+    - std::unique_ptr
     attributes:
       ignoredProp:
         ignore: true
@@ -39,8 +41,8 @@ classes:
     methods:
       ClassWithIgnored:
         cpp_code: |
-          [](py::args) {
-            return std::make_shared<ClassWithIgnored>(1);
+          [](ClassWithIgnored *self, nb::args) {
+            new (self) ClassWithIgnored(1);
           }
         keepalive: []
         param_override:

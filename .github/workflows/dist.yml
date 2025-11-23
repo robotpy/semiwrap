@@ -87,6 +87,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [setup_concurrency, build]
     strategy:
+      fail-fast: false
       max-parallel: ${{ fromJSON(needs.setup_concurrency.outputs.max-parallel).v }}
       matrix:
         os: ["ubuntu-22.04", "macos-14", "windows-2022"]
@@ -154,6 +155,8 @@ jobs:
     - name: Test wheel
       working-directory: tests
       run: python run_tests.py
+      env:
+        SEMIWRAP_ERROR_VERBOSE: "1"
 
   cross-build:
     runs-on: ubuntu-latest

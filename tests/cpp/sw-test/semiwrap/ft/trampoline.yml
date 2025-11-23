@@ -18,8 +18,8 @@ classes:
             return self->fnWithMoveOnlyParam(std::move(p));
           }
         virtual_xform: |
-          [&](py::function fn) -> int {
-            return py::cast<int>(fn(param.i));
+          [&](nb::callable fn) -> int {
+            return nb::cast<int>(fn(param.i));
           }
       ClassWithTrampoline:
         overloads:
@@ -44,5 +44,8 @@ classes:
 
 inline_code: |
   cls_ClassWithTrampoline
-    .def("get42", [](ClassWithTrampoline_Trampoline * self) { return self->get42(); })
+    .def("get42", [](ClassWithTrampoline *self) {
+      // This is probably UB, don't do this
+      return ((ClassWithTrampoline_Trampoline*)self)->get42();
+    })
   ;

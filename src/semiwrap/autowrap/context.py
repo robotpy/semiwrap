@@ -107,7 +107,7 @@ class ParamContext:
     # contains 'const', &, etc
     full_cpp_type: str
 
-    #: py::arg() for pybind11, includes default value
+    #: nb::arg() for nanobind, includes default value
     py_arg: str
 
     #: passed to lambda
@@ -412,7 +412,7 @@ class ClassContext:
     #: Name of variable in initializer. was: x_varname
     var_name: str
 
-    #: If the object shouldn't be deleted by pybind11, use this. Disables
+    #: If the object shouldn't be deleted by nanobind, use this. Disables
     #: implicit constructors.
     nodelete: bool
 
@@ -440,9 +440,6 @@ class ClassContext:
 
     #: Extra code to insert into the class scope
     inline_code: str
-
-    #: User specified settings
-    force_multiple_inheritance: bool
 
     #
     # Everything else
@@ -539,8 +536,10 @@ class HeaderContext:
     #: Path to the parsed header relative to some root
     rel_fname: str
 
-    #: True if <pybind11/operators.h> is needed
+    #: True if <nanobind/operators.h> is needed
     need_operators_h: bool = False
+    need_ndarray_h: bool = False
+    need_semiwrap_buffer_h: bool = False
 
     using_declarations: typing.List[PQName] = field(default_factory=list)
 
