@@ -40,7 +40,7 @@ def render_nanobind_dep(
     meson_build_path: T.Optional[pathlib.Path],
 ):
     nb_cmake_dir = nanobind.cmake_dir()
-    nb_include_dir = pathlib.Path(nanobind.include_dir())
+    nb_include_dir = pathlib.Path(nanobind.include_dir()).resolve()
 
     # Nanobind depends on robin-map, and embeds it in its wheel (but doesn't
     # explicitly expose it), so we cheat here
@@ -51,6 +51,10 @@ def render_nanobind_dep(
         / "include"
     )
 
+    # Both nb_include_dir and rm_include_dir are included via -I instead of
+    # include_directories because on Windows they may be on different drives,
+    # and include_directories only accepts relative paths
+
     r.writeln()
     r.write_trim(
         f"""
@@ -60,13 +64,13 @@ def render_nanobind_dep(
 
         meson.override_dependency(
             'robin-map',
-            declare_dependency(include_directories: [
-                {make_include_path_str(rm_include_dir, meson_build_path)},
-            ]),
+            declare_dependency(
+                compile_args: [{make_meson_string('-I' + str(rm_include_dir))}]
+            ),
         )
 
         # Arguments are derived from nanobind_build_library() in CMake configuration.
-        _sw_nb_dep_compile_args = []
+        _sw_nb_dep_compile_args = [{make_meson_string('-I' + str(nb_include_dir))}]
         _sw_nb_dep_link_args = []
 
         if meson.get_compiler('cpp').get_argument_syntax() == 'msvc'
@@ -119,7 +123,6 @@ def render_nanobind_dep(
             'nanobind',
             declare_dependency(
                 sources: [_sw_nb_src],
-                include_directories: [{make_include_path_str(nb_include_dir, meson_build_path)}],
                 dependencies: [dependency('robin-map')],
                 compile_args: _sw_nb_dep_compile_args,
                 link_args: _sw_nb_dep_link_args,
