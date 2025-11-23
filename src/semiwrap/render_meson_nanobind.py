@@ -105,9 +105,12 @@ def render_nanobind_dep(
             _sw_nb_dep_link_args += ['-Wl,@' + _sw_nb_resp_file]
         endif
 
-        if get_option('default_library') == 'shared'
-            _sw_nb_dep_compile_args += ['-DNB_SHARED']
-        elif host_machine.system() != 'windows' and host_machine.system() != 'darwin'
+        # We always link statically
+        #if get_option('default_library') == 'shared'
+        #    _sw_nb_dep_compile_args += ['-DNB_SHARED']
+        #endif
+
+        if host_machine.system() != 'windows' and host_machine.system() != 'darwin'
             _sw_nb_dep_compile_args += ['-ffunction-sections', '-fdata-sections']
             _sw_nb_dep_link_args += ['-Wl,--gc-sections']
         endif
