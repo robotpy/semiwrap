@@ -40,6 +40,9 @@ def render_cls_trampoline_hpp(ctx: HeaderContext, cls: ClassContext) -> str:
         "#include <nanobind/trampoline.h>"
     )
 
+    if cls.template is not None:
+        r.writeln("#include <string>")
+
     if ctx.extra_includes_first:
         r.writeln("\n// from extra_includes_first")
         for inc in ctx.extra_includes_first:

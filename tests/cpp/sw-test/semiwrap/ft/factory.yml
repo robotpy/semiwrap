@@ -4,7 +4,7 @@ classes:
       HasFactory:
         cpp_code: |-
           [](HasFactory *hf, int x) {
-            return new (hf) HasFactory(x + 1);
+            new (hf) HasFactory(x + 1);
           }
     attributes:
       m_x:

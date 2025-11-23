@@ -231,7 +231,7 @@ def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
     if prop.array_size:
         r.writeln(
             f'{varname}.def_prop_ro("{prop.py_name}", []({qualname}& self) {{\n'
-            f"    {"const " if prop.readonly else ""}nb::ndarray<nb::memview, {prop.cpp_type}> v("
+            f"    {'const ' if prop.readonly else ''}nb::ndarray<nb::memview, {prop.cpp_type}> v("
             f"&self.{prop.cpp_name}, {{ {prop.array_size} }});\n"
             "     return v;\n"
             f"}});"
