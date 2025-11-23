@@ -8,7 +8,7 @@ namespace nb = nanobind;
 namespace semiwrap {
 
 struct buffer_info {
-    ssize_t size = 0;
+    Py_ssize_t size = 0;
     Py_buffer *view = nullptr;
 
     buffer_info() = default;
