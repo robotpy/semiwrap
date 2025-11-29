@@ -33,7 +33,8 @@ dependencies = [
     "ruamel.yaml ~= 0.18.16",
     "typing-extensions",
     "pyyaml >= 5.1",
-    "nanobind ~= 2.9.2",
+    # "nanobind ~= 2.9.2",
+    "git+https://github.com/wjakob/nanobind.git@68b9ae82a3ed1ac34b2b96b141b45554ee79a497",
 ]
 
 [project.entry-points.hatch]
