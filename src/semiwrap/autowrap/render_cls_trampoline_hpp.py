@@ -329,8 +329,6 @@ def _render_cls_trampoline_virtual_method(
                 #
                 # .. lots of duplication here, but it's worse without it
 
-                # r.writeln("using LookupBase = typename PyTrampolineCfg::Base;")
-
                 all_names = ", ".join(p.arg_name for p in fn.all_params)
                 all_vnames = ", ".join(p.virtual_call_name for p in fn.all_params)
 
@@ -347,12 +345,6 @@ def _render_cls_trampoline_virtual_method(
                         SEMIWRAP_OVERRIDE_PURE_NAME("{fn.py_name}", {fn.cpp_name}, {all_names});
                         """
                     )
-                    # r.write_trim(
-                    #     f"""
-                    #     SEMIWRAP_OVERRIDE_PURE_NAME({cls.cpp_name}, PYBIND11_TYPE({fn.cpp_return_type}), LookupBase,
-                    #       "{fn.py_name}", {fn.cpp_name}, {all_names});
-                    #     """
-                    # )
                 elif fn.virtual_xform:
                     r.write_trim(
                         f"""
@@ -361,27 +353,10 @@ def _render_cls_trampoline_virtual_method(
                         return CxxCallBase::{fn.cpp_name}({all_vnames});
                         """
                     )
-                    # r.writeln(f"SEMIWRAP_OVERRIDE_XFORM()")
-                    # r.write_trim(
-                    #     f"""
-                    #     //using CxxCallBase = typename PyTrampolineCfg::override_base_{trampoline_signature(fn)};
-                    #     SEMIWRAP_OVERRIDE_CUSTOM_IMPL(PYBIND11_TYPE({fn.cpp_return_type}), LookupBase,
-                    #       "{fn.py_name}", {fn.cpp_name}, {all_names});
-                    #     return CxxCallBase::{fn.cpp_name}({all_vnames});
-                    #     """
-                    # )
                 else:
                     r.writeln(
-                        f'NB_OVERRIDE_NAME("{fn.py_name}", {fn.cpp_name}, {all_names});'
+                        f'SEMIWRAP_OVERRIDE_NAME("{fn.py_name}", {fn.cpp_name}, {all_names});'
                     )
-                    # r.write_trim(
-                    #     f"""
-                    #     using CxxCallBase = typename PyTrampolineCfg::override_base_{trampoline_signature(fn)};
-                    #     PYBIND11_OVERRIDE_IMPL(PYBIND11_TYPE({fn.cpp_return_type}), LookupBase,
-                    #       "{fn.py_name}", {all_names});
-                    #     return CxxCallBase::{fn.cpp_name}({all_vnames});
-                    #     """
-                    # )
 
         r.writeln("}")
     r.writeln("#endif")
