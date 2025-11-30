@@ -1,9 +1,9 @@
 
 #pragma once
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 // Py_IsFinalizing is public API in 3.13
 #if PY_VERSION_HEX < 0x030D0000
@@ -25,7 +25,7 @@ namespace semiwrap {
 */
 template <typename T>
 class gilsafe_t final {
-    py::object o;
+    nb::object o;
 
 public:
 
@@ -34,12 +34,12 @@ public:
     //
 
     // copy conversion
-    operator py::object() const & {
+    operator nb::object() const & {
         return o;
     }
 
     // move conversion
-    operator py::object() const && {
+    operator nb::object() const && {
         return std::move(o);
     }
 
@@ -54,7 +54,7 @@ public:
             // If the interpreter is alive, acquire the GIL, otherwise just leak
             // the object to avoid a crash
             if (!Py_IsFinalizing()) {
-                py::gil_scoped_acquire lock;
+                nb::gil_scoped_acquire lock;
                 o.dec_ref();
             }
 
@@ -64,31 +64,31 @@ public:
 
     // Copy constructor; always increases the reference count
     gilsafe_t(const gilsafe_t &other) {
-        py::gil_scoped_acquire lock;
+        nb::gil_scoped_acquire lock;
         o = other.o;
     }
 
     // Copy constructor; always increases the reference count
-    gilsafe_t(const py::object &other) {
-        py::gil_scoped_acquire lock;
+    gilsafe_t(const nb::object &other) {
+        nb::gil_scoped_acquire lock;
         o = other;
     }
 
-    gilsafe_t(const py::handle &other) {
-        py::gil_scoped_acquire lock;
-        o = py::reinterpret_borrow<py::object>(other);
+    gilsafe_t(const nb::handle &other) {
+        nb::gil_scoped_acquire lock;
+        o = nb::borrow<nb::object>(other);
     }
 
     // Move constructor; steals object from ``other`` and preserves its reference count
     gilsafe_t(gilsafe_t &&other) noexcept : o(std::move(other.o)) {}
 
     // Move constructor; steals object from ``other`` and preserves its reference count
-    gilsafe_t(py::object &&other)  noexcept : o(std::move(other)) {}
+    gilsafe_t(nb::object &&other)  noexcept : o(std::move(other)) {}
 
     // copy assignment
     gilsafe_t &operator=(const gilsafe_t& other) {
         if (!o.is(other.o)) {
-            py::gil_scoped_acquire lock;
+            nb::gil_scoped_acquire lock;
             o = other.o;
         }
         return *this;
@@ -97,7 +97,7 @@ public:
     // move assignment
     gilsafe_t &operator=(gilsafe_t&& other) noexcept {
         if (this != &other) {
-            py::gil_scoped_acquire lock;
+            nb::gil_scoped_acquire lock;
             o = std::move(other.o);
         }
         return *this;
@@ -106,36 +106,37 @@ public:
     explicit operator bool() const {
         return (bool)o;
     }
+
+    nb::handle borrow() const {
+        return o.inc_ref();
+    }
 };
 
 // convenience alias
-using gilsafe_object = gilsafe_t<py::object>;
+using gilsafe_object = gilsafe_t<nb::object>;
 
 } // namespace semiwrap
 
 
 
-PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
-PYBIND11_NAMESPACE_BEGIN(detail)
+NAMESPACE_BEGIN(NB_NAMESPACE)
+NAMESPACE_BEGIN(detail)
 
 template <typename T>
 struct type_caster<semiwrap::gilsafe_t<T>> {
-    bool load(handle src, bool convert) {
+    NB_TYPE_CASTER(semiwrap::gilsafe_t<T>, make_caster<T>::Name);
+
+    bool from_python(handle src, uint8_t, cleanup_list *) noexcept {
         value = src;
         return true;
     }
 
-    static handle cast(const handle &src, return_value_policy /* policy */, handle /* parent */) {
-        return src.inc_ref();
+    static handle from_cpp(const semiwrap::gilsafe_t<T> &src,
+                           rv_policy,
+                           cleanup_list *) noexcept {
+        return src.borrow();
     }
-
-    PYBIND11_TYPE_CASTER(semiwrap::gilsafe_t<T>, handle_type_name<T>::name);
 };
 
-template <typename T>
-struct handle_type_name<semiwrap::gilsafe_t<T>> {
-    static constexpr auto name = handle_type_name<T>::name;
-};
-
-PYBIND11_NAMESPACE_END(detail)
-PYBIND11_NAMESPACE_END(PYBIND11_NAMESPACE)
+NAMESPACE_END(detail)
+NAMESPACE_END(NB_NAMESPACE)

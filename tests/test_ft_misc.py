@@ -108,10 +108,9 @@ def test_factory():
 # gilsafe_container.h
 #
 
-if False:
 
-    def test_gilsafe_container():
-        ft.GilsafeContainer.check()
+def test_gilsafe_container():
+    ft.GilsafeContainer.check()
 
 
 #
