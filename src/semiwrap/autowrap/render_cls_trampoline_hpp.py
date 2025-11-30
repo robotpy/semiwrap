@@ -8,7 +8,7 @@ from .context import (
 )
 from .mangle import trampoline_signature
 
-from . import render_nanobind as rnb
+from . import render_nanobind as rnbind
 
 
 def precomma(v: str) -> str:
@@ -410,10 +410,10 @@ def _render_cls_template_impl(
     r.writeln(f"struct bind_{cls.full_cpp_name_identifier} {{")
 
     with r.indent():
-        rnb.cls_user_using(r, cls)
-        rnb.cls_auto_using(r, cls)
-        rnb.cls_consts(r, cls)
-        rnb.cls_decl(r, cls)
+        rnbind.cls_user_using(r, cls)
+        rnbind.cls_auto_using(r, cls)
+        rnbind.cls_consts(r, cls)
+        rnbind.cls_decl(r, cls)
 
         r.writeln("\nnb::module_ &m;\nstd::string clsName;")
 
@@ -424,11 +424,11 @@ def _render_cls_template_impl(
         with r.indent():
 
             # TODO: embedded structs will fail here
-            rnb.cls_init(r, cls, "clsName")
+            rnbind.cls_init(r, cls, "clsName")
             r.writeln("m(m),")
             r.writeln("clsName(clsName) {")
 
-            rnb.cls_def_enum(r, cls, cls.var_name)
+            rnbind.cls_def_enum(r, cls, cls.var_name)
 
         r.write_trim(
             """
@@ -438,7 +438,7 @@ def _render_cls_template_impl(
             """
         )
         with r.indent():
-            rnb.cls_def(r, cls, cls.var_name)
+            rnbind.cls_def(r, cls, cls.var_name)
 
             r.write_trim(
                 f"""
