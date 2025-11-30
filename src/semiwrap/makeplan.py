@@ -16,6 +16,7 @@ from .pkgconf_cache import PkgconfCache
 from .pyproject import PyProject
 from .util import relpath_walk_up
 
+import nanobind
 import toposort
 
 
@@ -177,6 +178,10 @@ class _BuildPlanner:
         assert sw_path is not None
         self.semiwrap_type_caster_path = sw_path
 
+        self.pkgcache.add_local(
+            "nanobind", [pathlib.Path(nanobind.include_dir())], [], None
+        )
+
     def generate(self):
 
         projectcfg = self.pyproject.project
@@ -300,6 +305,7 @@ class _BuildPlanner:
 
         depends = self.pyproject.get_extension_deps(extension)
         depends.append("semiwrap")
+        depends.append("nanobind")
 
         # Search path for wrapping is dictated by package_path and wraps
         search_path, include_directories_uniq, caster_json_file, libinit_modules = (
