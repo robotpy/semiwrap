@@ -1256,8 +1256,7 @@ class AutowrapVisitor:
         # If there isn't already a constructor, add a default constructor
         # - was going to add a FunctionContext for it, but.. this is way easier
         ctx.add_default_constructor = (
-            not ctx.has_constructor
-            and not class_data.force_no_default_constructor
+            not ctx.has_constructor and not class_data.force_no_default_constructor
         )
 
         has_trampoline = (
