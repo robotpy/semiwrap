@@ -82,7 +82,7 @@ class BufferData:
 
 class ReturnValuePolicy(enum.Enum):
     """
-    See `pybind11 documentation <https://pybind11.readthedocs.io/en/stable/advanced/functions.html#return-value-policies>`_
+    See `nanobind documentation <https://nanobind.readthedocs.io/en/latest/ownership.html#return-value-policies>`_
     for what each of these values mean.
     """
 
@@ -406,10 +406,6 @@ class ClassData:
     #: instead of explicitly including the header. This should be the full
     #: namespace of the type.
     force_type_casters: List[str] = dataclasses.field(default_factory=list)
-
-    #: If the object shouldn't be deleted by pybind11, use this. Disables
-    #: implicit constructors.
-    nodelete: bool = False
 
     #: Set the python name of the class to this
     rename: Optional[str] = None

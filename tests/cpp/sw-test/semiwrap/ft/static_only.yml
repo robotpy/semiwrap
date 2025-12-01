@@ -1,5 +1,5 @@
 classes:
   StaticOnly:
-    nodelete: true
+    force_no_default_constructor: true
     methods:
       callme:
