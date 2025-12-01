@@ -745,7 +745,6 @@ class AutowrapVisitor:
             py_name=py_name,
             scope_var=scope_var,
             var_name=var_name,
-            nodelete=class_data.nodelete,
             final=class_decl.final,
             doc=doc,
             bases=bases,
@@ -1256,7 +1255,6 @@ class AutowrapVisitor:
         # - was going to add a FunctionContext for it, but.. this is way easier
         ctx.add_default_constructor = (
             not ctx.has_constructor
-            and not class_data.nodelete
             and not class_data.force_no_default_constructor
         )
 

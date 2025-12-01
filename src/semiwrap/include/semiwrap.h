@@ -14,12 +14,6 @@ namespace swgen {
 // empty trampoline configuration base
 struct EmptyTrampolineCfg {};
 
-/// Dummy destructor wrapper that can be used to expose classes with a private destructor
-struct nodelete {
-    template <typename T>
-    void operator()(T *) {}
-};
-
 };
 
 #define SEMIWRAP_BAD_TRAMPOLINE \

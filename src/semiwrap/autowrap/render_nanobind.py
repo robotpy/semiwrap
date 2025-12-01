@@ -337,12 +337,6 @@ def cls_decl(r: RenderBuffer, cls: ClassContext):
         )
 
     class_params = [f"typename {cls.full_cpp_name}"]
-    # if cls.nodelete:
-    #     class_params.append(
-    #         f"std::unique_ptr<typename {cls.full_cpp_name}, swgen::nodelete>"
-    #     )
-    # else:
-    #     class_params.append("py::smart_holder")
 
     if cls.trampoline:
         class_params.append(cls.trampoline.var)
