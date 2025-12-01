@@ -4,6 +4,7 @@ classes:
       set_buffer:
         buffers:
         - {type: IN, src: data, len: len}
+      get_msize:
       get_buffer2:
         buffers:
         - {type: OUT, src: data, len: len}

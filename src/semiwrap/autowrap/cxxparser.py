@@ -1797,7 +1797,7 @@ class AutowrapVisitor:
                 else:
                     lambda_pre += [f"auto {bname} = {p_name}.request(true)"]
 
-                lambda_pre += [f"{bufinfo.len} = {bname}.size * {bname}.view->itemsize"]
+                lambda_pre += [f"{bufinfo.len} = {bname}.total_size()"]
 
                 # TODO: check for dimensions, strides, other dangerous things
 
