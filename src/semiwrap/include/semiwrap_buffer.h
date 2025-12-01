@@ -55,6 +55,21 @@ class buffer : public nb::object {
         }
         return buffer_info(view);
     }
+
+    bool request_nothrow(buffer_info &info, bool writable = false) const {
+        int flags = PyBUF_STRIDES | PyBUF_FORMAT;
+        if (writable) {
+            flags |= PyBUF_WRITABLE;
+        }
+        auto *view = new Py_buffer();
+        if (PyObject_GetBuffer(m_ptr, view, flags) != 0) {
+            delete view;
+            PyErr_Clear();
+            return false;
+        }
+        info = buffer_info(view);
+        return true;
+    }
 };
 
 }; // namespace semiwrap
