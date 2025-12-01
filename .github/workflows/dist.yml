@@ -143,6 +143,10 @@ jobs:
         echo "CXX=ccache.exe cl" >> $GITHUB_ENV
       if: runner.os == 'Windows'
 
+    - name: Install nanobind
+      shell: bash
+      run: python -m pip --disable-pip-version-check install git+https://github.com/wjakob/nanobind.git@68b9ae82a3ed1ac34b2b96b141b45554ee79a497
+
     - name: Install
       shell: bash
       working-directory: dist
