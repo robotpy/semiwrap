@@ -62,6 +62,7 @@ if False:
 def test_buffers():
     o = ft.Buffers()
     o.set_buffer(b"12345")
+    assert o.get_msize() == 5
 
     b = bytearray(4)
     l = o.get_buffer1(b)

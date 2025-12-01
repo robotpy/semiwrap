@@ -33,7 +33,11 @@ struct buffer_info {
         if (view) {
             PyBuffer_Release(view);
         }
-    }  
+    }
+
+    Py_ssize_t total_size() const {
+        return size * view->itemsize;
+    }
 };
 
 class buffer : public nb::object {
