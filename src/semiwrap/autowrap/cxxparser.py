@@ -1776,30 +1776,22 @@ class AutowrapVisitor:
             p_name = pctx.arg_name
             if p_name in buffer_params:
                 bufinfo = buffer_params.pop(p_name)
-                bname = f"__{bufinfo.src}"
 
-                self.hctx.need_semiwrap_buffer_h = True
-                pctx.call_name = f"({pctx.cpp_type}*){bname}.view->buf"
-                pctx.cpp_type = "const semiwrap::buffer"
-                pctx.full_cpp_type = "const semiwrap::buffer&"
-
-                # this doesn't seem to be true for bytearrays, which is silly
-                # x_lambda_pre.append(
-                #     f'if (PyBuffer_IsContiguous((Py_buffer*){p_name}.ptr(), \'C\') == 0) throw py::value_error("{p_name}: buffer must be contiguous")'
-                # )
-
-                # TODO: check for dimensions, strides, other dangerous things
+                self.hctx.need_ndarray_h = True
+                pctx.call_name = f"{p_name}.data()"
 
                 # bufinfo was validated and converted before it got here
                 pctx.category = ParamCategory.IN
+                cpp_type = pctx.cpp_type
                 if bufinfo.type is BufferType.IN:
-                    lambda_pre += [f"auto {bname} = {p_name}.request(false)"]
+                    pctx.cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::ro, nb::c_contig>"
+                    pctx.full_cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::ro, nb::c_contig>&"
+
                 else:
-                    lambda_pre += [f"auto {bname} = {p_name}.request(true)"]
+                    pctx.cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::c_contig>"
+                    pctx.full_cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::c_contig>&"
 
-                lambda_pre += [f"{bufinfo.len} = {bname}.total_size()"]
-
-                # TODO: check for dimensions, strides, other dangerous things
+                lambda_pre += [f"{bufinfo.len} = {p_name}.size()"]
 
                 if bufinfo.minsz:
                     lambda_pre.append(

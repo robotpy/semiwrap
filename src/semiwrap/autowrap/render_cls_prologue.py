@@ -31,8 +31,6 @@ def render_class_prologue(r: RenderBuffer, hctx: HeaderContext):
         r.writeln(f"\n#include <nanobind/operators.h>")
     if hctx.need_ndarray_h:
         r.writeln(f"\n#include <nanobind/ndarray.h>")
-    if hctx.need_semiwrap_buffer_h:
-        r.writeln(f"\n#include <semiwrap_buffer.h>")
 
     if hctx.using_declarations:
         r.writeln()
