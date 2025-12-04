@@ -535,7 +535,6 @@ class HeaderContext:
     #: True if <nanobind/operators.h> is needed
     need_operators_h: bool = False
     need_ndarray_h: bool = False
-    need_semiwrap_buffer_h: bool = False
 
     using_declarations: typing.List[PQName] = field(default_factory=list)
 
