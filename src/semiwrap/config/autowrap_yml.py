@@ -407,6 +407,13 @@ class ClassData:
     #: namespace of the type.
     force_type_casters: List[str] = dataclasses.field(default_factory=list)
 
+    #: If the object shouldn't be deleted by nanobind, use this. Disables
+    #: implicit constructors as well.
+    #:
+    #: It is likely that you should also ensure that any functions that return
+    #: an instance of this type should use ``rv_policy::reference``
+    never_destroy: bool = False
+
     #: Set the python name of the class to this
     rename: Optional[str] = None
 

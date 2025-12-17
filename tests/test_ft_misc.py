@@ -178,6 +178,16 @@ def test_static_only():
     assert ft.StaticOnly.callme() == 0x56
 
 
+def test_static_only2():
+    # shouldn't be able to construct
+    with pytest.raises(TypeError):
+        ft.StaticOnly2()
+
+    # should be able to call getNumber
+    ft.StaticOnly2.getInstance().setNumber(0x56)
+    assert ft.StaticOnly2.getInstance().getNumber() == 0x56
+
+
 #
 # using.h / using2.h
 #

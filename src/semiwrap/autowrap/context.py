@@ -412,6 +412,10 @@ class ClassContext:
     #: Name of variable in initializer. was: x_varname
     var_name: str
 
+    #: If the object shouldn't be deleted by nanobind, use this. Disables
+    #: implicit constructors as well.
+    never_destroy: bool
+
     #: class is final
     final: bool
 
