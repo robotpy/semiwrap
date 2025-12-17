@@ -7,6 +7,7 @@ subdir('semiwrap')
 swtest_ft__ft_sources += files(
   'src/swtest/ft/src/fields.cpp',
   'src/swtest/ft/src/ft.cpp',
+  'src/swtest/ft/src/static_only.cpp',
   'src/swtest/ft/src/using2.cpp',
 )
 

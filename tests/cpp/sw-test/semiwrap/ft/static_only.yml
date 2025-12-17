@@ -1,5 +1,13 @@
 classes:
   StaticOnly:
-    force_no_default_constructor: true
+    never_destroy: true
     methods:
       callme:
+  StaticOnly2:
+    never_destroy: true
+    methods:
+      getInstance:
+        return_value_policy: reference
+        # no_release_gil: true
+      getNumber:
+      setNumber:

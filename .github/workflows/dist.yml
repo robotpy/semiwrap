@@ -130,6 +130,10 @@ jobs:
       with:
         architecture: x64
       if: runner.os == 'Windows'
+    
+    - name: Install nanobind
+      shell: bash
+      run: python -m pip --disable-pip-version-check install git+https://github.com/virtuald/nanobind.git@9f40587d63fe761688baff9f8dec1858198dacfe
 
     - name: Configure ccache for MSVC
       shell: bash
