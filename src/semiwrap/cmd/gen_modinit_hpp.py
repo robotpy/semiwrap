@@ -66,8 +66,8 @@ def _write_wrapper_hpp(
         #pragma once
         #include <semiwrap.h>
 
-        // Use this to define your module instead of PYBIND11_MODULE
-        #define SEMIWRAP_PYBIND11_MODULE(variable) PYBIND11_MODULE({module_name}, variable)
+        // Use this to define your module instead of NB_MODULE
+        #define SEMIWRAP_MODULE(variable) NB_MODULE({module_name}, variable)
 
         // TODO: namespace semiwrap::autogen {{
 
@@ -77,13 +77,13 @@ def _write_wrapper_hpp(
     for name in ordering:
         r.write_trim(
             f"""
-                void begin_init_{name}(py::module &m);
+                void begin_init_{name}(nb::module_ &m);
                 void finish_init_{name}();
             """
         )
         r.writeln()
 
-    r.writeln("static void initWrapper(py::module &m) {")
+    r.writeln("static void initWrapper(nb::module_ &m) {")
     with r.indent():
         for name in ordering:
             r.writeln(f"begin_init_{name}(m);")

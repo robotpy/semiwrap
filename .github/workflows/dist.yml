@@ -52,7 +52,7 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.9
     - name: Sphinx
       run: |
         pip --disable-pip-version-check install -e .
@@ -69,7 +69,7 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.9
 
     - name: Install build
       run: python -m pip --disable-pip-version-check install build
@@ -87,11 +87,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [setup_concurrency, build]
     strategy:
+      fail-fast: false
       max-parallel: ${{ fromJSON(needs.setup_concurrency.outputs.max-parallel).v }}
       matrix:
         os: ["ubuntu-22.04", "macos-14", "windows-2022"]
         python_version:
-        - '3.8'
         - '3.9'
         - '3.10'
         - '3.11'
@@ -99,11 +99,6 @@ jobs:
         - '3.13'
         - '3.14'
         exclude:
-        - os: macos-14
-          python_version: '3.8'
-        include:
-        - os: macos-13
-          python_version: '3.8'
         - os: ubuntu-22.04-arm
           python_version: '3.11'
 
@@ -133,6 +128,10 @@ jobs:
       with:
         architecture: x64
       if: runner.os == 'Windows'
+    
+    - name: Install nanobind
+      shell: bash
+      run: python -m pip --disable-pip-version-check install git+https://github.com/virtuald/nanobind.git@9f40587d63fe761688baff9f8dec1858198dacfe
 
     - name: Configure ccache for MSVC
       shell: bash
@@ -154,6 +153,8 @@ jobs:
     - name: Test wheel
       working-directory: tests
       run: python run_tests.py
+      env:
+        SEMIWRAP_ERROR_VERBOSE: "1"
 
   cross-build:
     runs-on: ubuntu-latest

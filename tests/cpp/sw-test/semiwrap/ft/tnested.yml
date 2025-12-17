@@ -4,6 +4,8 @@ classes:
     - T
 
   Outer::Inner:
+    force_type_casters:
+    - std::string
     attributes:
       t:
     inline_code: |

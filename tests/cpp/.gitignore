@@ -2,7 +2,7 @@
 *.py[ciod]
 
 *.pc
-*.pybind11.json
+*.nanobind.json
 *.so
 *.dll
 *.pyd
