@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
     "pkgconf",
     "sphinxify >= 0.7.3",
-    "validobj ~= 1.2",
+    "validobj ~= 1.3.0",
     "cxxheaderparser[pcpp] ~= 1.5",
     "packaging",
     "tomli",

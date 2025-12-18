@@ -102,7 +102,7 @@ jobs:
         - os: macos-14
           python_version: '3.8'
         include:
-        - os: macos-13
+        - os: macos-15-intel
           python_version: '3.8'
         - os: ubuntu-22.04-arm
           python_version: '3.11'
