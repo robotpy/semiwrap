@@ -11,11 +11,11 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import pkg_resources
+from importlib import metadata
 
 os.environ["GENERATING_DOCUMENTATION"] = "True"
 
-__version__ = pkg_resources.get_distribution("semiwrap").version
+__version__ = metadata.version("semiwrap")
 
 
 # -- RTD configuration ------------------------------------------------
