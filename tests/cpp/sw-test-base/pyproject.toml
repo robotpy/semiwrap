@@ -50,3 +50,8 @@ types = ["inty"]
 [[tool.semiwrap.export_type_casters.sw-test-base-casters.headers]]
 header = "ns_inty_cast.h"
 types = ["ns::inty2"]
+
+[[tool.semiwrap.export_type_casters.sw-test-base-casters.headers]]
+header = "int_with_offset_cast.h"
+types = ["int_ns::IntWithOffset"]
+default_arg_cast = true

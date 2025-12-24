@@ -23,6 +23,10 @@ packages = ['src/sw_caster_consumer']
 depends = ["swtest_base__module"]
 
 [tool.semiwrap.extension_modules."sw_caster_consumer._module".headers]
+
+# checks that caster with default value works
+int_with_offset_unwrap = "cpp/int_with_offset_unwrap.h"
+
 more = "cpp/more.h"
 
 # checks that caster is included automatically when in a namespace
