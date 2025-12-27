@@ -1980,8 +1980,7 @@ class AutowrapVisitor:
             if typename:
                 ccfg = self.casters.get(typename)
                 if ccfg and ccfg.default_arg_cast:
-                    found_typename = ccfg.typename
-                    name = f"({found_typename}){name}"
+                    name = f"({ptype.format()}){name}"
 
         return name
 
