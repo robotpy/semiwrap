@@ -17,6 +17,7 @@ else:
 
 
 import sphinxify
+from cxxheaderparser.errors import CxxParseError
 from cxxheaderparser.options import ParserOptions
 from cxxheaderparser.parser import CxxParser
 from cxxheaderparser.parserstate import (
@@ -25,6 +26,7 @@ from cxxheaderparser.parserstate import (
     NamespaceBlockState,
     NonClassBlockState,
 )
+from cxxheaderparser.simple import parse_typename
 from cxxheaderparser.tokfmt import tokfmt
 from cxxheaderparser.types import (
     AnonymousName,
@@ -2034,16 +2036,16 @@ class AutowrapVisitor:
 
     def _process_user_type_casters(self):
         # processes each user type caster and adds it to the processed list
-        types = self.types
         for typename in self.user_types:
-            tmpl_idx = typename.find("<")
-            if tmpl_idx == -1:
-                types.add(typename)
-            else:
-                types.add(typename[:tmpl_idx])
-                types.update(
-                    _type_caster_seps.split(typename[tmpl_idx:].replace(" ", ""))
-                )
+            if typename.isnumeric():
+                continue
+
+            try:
+                parsed_type = parse_typename(typename)
+            except CxxParseError as e:
+                raise ValueError(f"parsing typename `{typename}`") from e
+
+            self._add_type_caster(parsed_type)
 
     def _set_type_caster_includes(self):
         # process user casters
