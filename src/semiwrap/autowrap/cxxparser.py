@@ -1470,6 +1470,9 @@ class AutowrapVisitor:
                                 msg = f"{msg} (type for 'auto' return value must be included)"
                             raise ValueError(msg)
 
+                        for impl_type in impl:
+                            self._add_user_type_caster(impl_type)
+
                         impl_params = list(impl)
                         if has_auto_retval:
                             impl_params = impl_params[:-1]

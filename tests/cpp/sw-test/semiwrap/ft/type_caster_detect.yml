@@ -1,0 +1,4 @@
+functions:
+  type_caster_detect:
+    template_impls:
+    - ["std::vector<int>"]
