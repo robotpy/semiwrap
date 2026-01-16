@@ -75,17 +75,114 @@ docstrings set explicitly using a ``doc`` value in the YAML file.
 Parameters
 ----------
 
-TODO
+Most of the time semiwrap can infer the Python signature from the C++
+signature. When it cannot, or when you want to make the Python API more
+idiomatic, use ``param_override`` on a function/method or overload to adjust
+individual parameters.
+
+Parameters are keyed by their C++ name. If a parameter is unnamed in the
+header, semiwrap assigns it a name like ``param0`` and you can use that in
+``param_override``.
+
+Common overrides include:
+
+* ``name``: rename the parameter as exposed to Python
+* ``x_type``: override the C++ type string used in the binding
+* ``default`` / ``no_default``: set or suppress a default value
+* ``disable_none``: disallow implicit conversion from ``None`` for this param
+* ``array_size``: force array length when a parameter is a raw array
+* ``ignore``: remove the parameter from the Python signature
+
+Example:
+
+.. code-block:: yaml
+
+   functions:
+     fn:
+       param_override:
+         count:
+           name: n
+           default: "0"
+         value:
+           x_type: "myns::Value"
+         opt:
+           disable_none: true
+
+Buffer protocol support
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If a function takes a pointer + length pair, you can map it to Python buffer
+objects (``bytes``, ``bytearray``, ``memoryview``, etc.) using ``buffers``.
+Each buffer entry names the data pointer parameter and the length parameter.
+The length parameter can be a pointer (treated as out) or a value (treated as
+temporary).
+
+.. code-block:: yaml
+
+   functions:
+     read_data:
+       buffers:
+       - type: out
+         src: data
+         len: length
+         minsz: 64
 
 .. _autowrap_out_params:
 
 Out parameters
 ~~~~~~~~~~~~~~
 
-TODO
+semiwrap detects C++ "out parameters" and converts them into Python return
+values. This keeps the Python signature clean while still allowing the C++
+API to communicate multiple outputs.
+
+Automatic detection:
+
+* Non-const pointers or references to fundamental types are treated as out.
+* Raw arrays are treated as out parameters.
+* If ``defaults.references_are_out_param`` is set to ``true``, any non-const
+  ``T&`` is treated as out.
+
+You can force this behavior with ``param_override.force_out``.
+
+When out parameters are present, the generated wrapper returns:
+
+* the original return value (if any), followed by
+* any out parameters, in the order they appear
+
+If there is only one value, it is returned directly; otherwise a tuple is
+returned. Out parameters are removed from the Python signature.
+
+.. code-block:: yaml
+
+   functions:
+     read_value:
+       param_override:
+         out:
+           force_out: true
 
 Conditional compilation
 -----------------------
+
+You can guard individual overloads with preprocessor macros. This is useful
+for platform-specific APIs or optional features.
+
+Use ``ifdef`` or ``ifndef`` on the function/method (or specific overload) to
+wrap the generated binding in ``#ifdef``/``#ifndef`` blocks.
+
+.. code-block:: yaml
+
+   functions:
+     platform_fn:
+       ifdef: SOME_PLATFORM
+
+   classes:
+     MyClass:
+       methods:
+         maybe:
+           overloads:
+             int:
+               ifndef: SWGEN_DISABLE_MAYBE_INT
 
 .. _class_templates:
 
