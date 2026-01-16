@@ -1565,11 +1565,11 @@ class AutowrapVisitor:
 
         # TODO: this is precarious
         # - needs to override some things
-        force_out = False
+        param_is_out = False
         default = None
         disable_none = fn_disable_none
         if param_override is not _default_param_data:
-            force_out = param_override.force_out
+            param_is_out = param_override.force_out
             if param_override.name:
                 p_name = param_override.name
             if param_override.x_type:
@@ -1615,9 +1615,13 @@ class AutowrapVisitor:
 
         pcat = ParamCategory.IN
 
-        if force_out or (
-            (p_pointer or p_reference == 1) and not p_const and fundamental
-        ):
+        if not p_const:
+            if fundamental and (p_pointer or p_reference == 1):
+                param_is_out = True
+            elif (p_reference == 1) and self.user_cfg.defaults.references_are_out_param:
+                param_is_out = True
+
+        if param_is_out:
             if p_pointer:
                 call_name = f"&{call_name}"
             else:

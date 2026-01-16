@@ -29,6 +29,11 @@ def test_obj_ref():
     assert p.x == 5
 
 
+def test_obj_ref_default_out():
+    p = ft.fnParamObjRefOut(5)
+    assert p.x == 5
+
+
 def test_param_out_not_set():
     assert ft.fnParamOutNotSet() == (1, 0)
 

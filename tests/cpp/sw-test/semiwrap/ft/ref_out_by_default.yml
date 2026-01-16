@@ -1,0 +1,9 @@
+defaults:
+  references_are_out_param: true
+
+functions:
+  fnParamObjRefOut:
+classes:
+  RefParam:
+    attributes:
+      x:
