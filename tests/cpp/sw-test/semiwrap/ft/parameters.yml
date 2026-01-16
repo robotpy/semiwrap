@@ -30,5 +30,8 @@ functions:
   fnParamFundRef:
   fnParamFundConstRef:
   fnParamAutoDisableNone:
+  fnParamObjRef:
 classes:
   Param:
+    attributes:
+      x:

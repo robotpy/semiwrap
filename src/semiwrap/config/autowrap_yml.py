@@ -527,6 +527,10 @@ class Defaults:
     #: All items will be added to this subpackage unless specified otherwise
     subpackage: Optional[str] = None
 
+    #: If specified, any non-const ``Foo&`` parameters will be assumed to be
+    #: an 'out' parameter
+    references_are_out_param: bool = False
+
 
 @dataclasses.dataclass(frozen=True)
 class AutowrapConfigYaml:

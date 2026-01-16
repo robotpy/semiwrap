@@ -57,7 +57,13 @@ int fnParamFundConstRef(int x, const int &y)
     return x + y;
 }
 
-struct Param {};
+struct Param {
+    int x = 1;
+};
+
+void fnParamObjRef(int x, Param &p) {
+    p.x = x;
+}
 
 bool fnParamDisableNone(std::shared_ptr<Param> p)
 {
