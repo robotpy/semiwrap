@@ -22,6 +22,13 @@ def test_fund_const_ref():
     assert ft.fnParamFundConstRef(1, 2) == 3
 
 
+def test_obj_ref():
+    p = ft.Param()
+    assert p.x == 1
+    ft.fnParamObjRef(5, p)
+    assert p.x == 5
+
+
 def test_param_out_not_set():
     assert ft.fnParamOutNotSet() == (1, 0)
 
