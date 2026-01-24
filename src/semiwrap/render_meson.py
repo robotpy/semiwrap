@@ -162,6 +162,7 @@ def _render_include_directories(
     r: RenderBuffer,
     incs: T.Sequence[pathlib.Path],
     meson_build_path: T.Optional[pathlib.Path],
+    include_current_build: bool = False,
 ):
     # meson wants these to be relative to meson.build
     # - only can do that if we're writing an output file
@@ -169,9 +170,12 @@ def _render_include_directories(
         meson_build_parent = meson_build_path.parent
         incs = [relpath_walk_up(p, meson_build_parent) for p in incs]
 
-    _render_meson_args(
-        r, "include_directories", [_make_string(inc.as_posix()) for inc in incs]
-    )
+    inc_strs = [_make_string(inc.as_posix()) for inc in incs]
+    if include_current_build:
+        inc_strs = ["include_directories('.')"] + inc_strs
+
+    if inc_strs:
+        _render_meson_args(r, "include_directories", inc_strs)
 
 
 def _render_meson_args(r: RenderBuffer, name: str, args: T.List[str]):
@@ -223,8 +227,7 @@ def _render_module_stage0(
             deps = ", ".join(depnames)
             r.writeln(f"dependencies: [{deps}],")
 
-        if m.include_directories:
-            _render_include_directories(r, m.include_directories, meson_build_path)
+        _render_include_directories(r, m.include_directories, meson_build_path)
 
     r.writeln(")]")
 
@@ -256,8 +259,7 @@ def _render_module_stage1(
         """
         )
 
-        if m.include_directories:
-            _render_include_directories(r, m.include_directories, meson_build_path)
+        _render_include_directories(r, m.include_directories, meson_build_path)
 
     r.writeln(")")
     r.writeln()
@@ -386,8 +388,9 @@ def render_meson(
                     depstrs = ", ".join(deps)
                     r0.writeln(f"dependencies: [{depstrs}],")
 
-                if ld.include_paths:
-                    _render_include_directories(r0, ld.include_paths, stage0_path)
+                _render_include_directories(
+                    r0, ld.include_paths, stage0_path, include_current_build=True
+                )
 
             r0.writeln(")")
 
