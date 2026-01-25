@@ -56,9 +56,22 @@ class CompilerInfo:
 
 
 @dataclasses.dataclass(frozen=True)
+class TrampolineIncludeRoot:
+    """
+    Marker for a build-system renderer indicating that the include path for
+    generated trampoline headers should be added.
+
+    Concretely, this should be the directory that contains `trampolines/*.hpp`
+    at build time.
+    """
+
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
 class LocalDependency:
     name: str
-    include_paths: T.Tuple[pathlib.Path, ...]
+    include_paths: T.Tuple[T.Union[pathlib.Path, TrampolineIncludeRoot], ...]
     depends: T.Tuple[T.Union[LocalDependency, str], ...]
 
 
@@ -390,7 +403,11 @@ class _BuildPlanner:
         )
         local_dep = LocalDependency(
             name=cached_dep.name,
-            include_paths=tuple(cached_dep.include_path),
+            # Generated bindings include `trampolines/<name>.hpp`. When working
+            # in editable mode, stale trampolines may exist in the source tree,
+            # so ensure the build directory's trampolines directory is searched
+            # first.
+            include_paths=(TrampolineIncludeRoot(), *tuple(cached_dep.include_path)),
             depends=tuple(self._resolve_dep(dep) for dep in depends),
         )
         yield local_dep

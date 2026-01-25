@@ -17,6 +17,7 @@ from .makeplan import (
     BuildTargetOutput,
     ExtensionModule,
     LocalDependency,
+    TrampolineIncludeRoot,
     CppMacroValue,
     CompilerInfo,
     makeplan,
@@ -160,18 +161,34 @@ def _render_build_target(r: RenderBuffer, vc: VarCache, bt: BuildTarget):
 
 def _render_include_directories(
     r: RenderBuffer,
-    incs: T.Sequence[pathlib.Path],
+    incs: T.Sequence[T.Union[pathlib.Path, TrampolineIncludeRoot]],
     meson_build_path: T.Optional[pathlib.Path],
 ):
     # meson wants these to be relative to meson.build
     # - only can do that if we're writing an output file
     if meson_build_path:
         meson_build_parent = meson_build_path.parent
-        incs = [relpath_walk_up(p, meson_build_parent) for p in incs]
+        incs = [
+            (
+                relpath_walk_up(p, meson_build_parent)
+                if isinstance(p, pathlib.Path)
+                else p
+            )
+            for p in incs
+        ]
 
-    _render_meson_args(
-        r, "include_directories", [_make_string(inc.as_posix()) for inc in incs]
-    )
+    inc_items: T.List[str] = []
+    for inc in incs:
+        if isinstance(inc, TrampolineIncludeRoot):
+            # include_directories('.') uses both the source and build dir for the
+            # current meson.build subdir. This ensures generated trampolines in
+            # the build tree are found before any stale copies in the source tree.
+            inc_items.append("include_directories('.')")
+        else:
+            inc_items.append(_make_string(inc.as_posix()))
+
+    if inc_items:
+        _render_meson_args(r, "include_directories", inc_items)
 
 
 def _render_meson_args(r: RenderBuffer, name: str, args: T.List[str]):
