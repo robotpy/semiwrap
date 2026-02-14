@@ -106,6 +106,8 @@ jobs:
           python_version: '3.8'
         - os: ubuntu-22.04-arm
           python_version: '3.11'
+        - os: windows-11-arm
+          python_version: '3.12'
 
     steps:
     - uses: actions/checkout@v5
