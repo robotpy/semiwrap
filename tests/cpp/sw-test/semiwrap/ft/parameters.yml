@@ -32,7 +32,6 @@ functions:
   fnParamOutNotSet:
   fnParamFundRef:
   fnParamFundConstRef:
-  fnParamAutoDisableNone:
   fnParamObjRef:
 classes:
   Param:
