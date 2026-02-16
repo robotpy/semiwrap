@@ -414,7 +414,7 @@ class ClassContext:
 
     #: If the object shouldn't be deleted by nanobind, use this. Disables
     #: implicit constructors as well.
-    never_destroy: bool
+    never_destruct: bool
 
     #: class is final
     final: bool

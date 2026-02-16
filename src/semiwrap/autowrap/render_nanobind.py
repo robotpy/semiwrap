@@ -363,8 +363,8 @@ def cls_init(r: RenderBuffer, cls: ClassContext, name: str):
 
     if cls.final:
         init_params.append("nb::is_final()")
-    if cls.never_destroy:
-        init_params.append("nb::never_destroy()")
+    if cls.never_destruct:
+        init_params.append("nb::never_destruct()")
 
     r.writeln(f'{cls.var_name}({", ".join(init_params)}),')
 

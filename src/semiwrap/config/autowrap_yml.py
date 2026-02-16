@@ -412,7 +412,7 @@ class ClassData:
     #:
     #: It is likely that you should also ensure that any functions that return
     #: an instance of this type should use ``rv_policy::reference``
-    never_destroy: bool = False
+    never_destruct: bool = False
 
     #: Set the python name of the class to this
     rename: Optional[str] = None

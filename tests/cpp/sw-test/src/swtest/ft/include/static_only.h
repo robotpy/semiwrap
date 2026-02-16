@@ -14,7 +14,7 @@ public:
     }
 };
 
-// this will only compile if never_destroy: true is set in the YML
+// this will only compile if never_destruct: true is set in the YML
 class StaticOnly2 {
   public:
     StaticOnly2(const StaticOnly2&) = delete;

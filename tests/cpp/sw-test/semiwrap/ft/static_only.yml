@@ -1,10 +1,10 @@
 classes:
   StaticOnly:
-    never_destroy: true
+    never_destruct: true
     methods:
       callme:
   StaticOnly2:
-    never_destroy: true
+    never_destruct: true
     methods:
       getInstance:
         return_value_policy: reference

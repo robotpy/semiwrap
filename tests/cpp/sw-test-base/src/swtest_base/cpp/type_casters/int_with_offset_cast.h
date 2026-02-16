@@ -1,18 +1,20 @@
 #pragma once
 
 //
-// From pybind11 documentation
+// From pybind11 documentation, converted to nanobind
 //
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
-namespace pybind11::detail {
+NAMESPACE_BEGIN(NB_NAMESPACE)
+NAMESPACE_BEGIN(detail)
 
 template <int Offset>
 struct type_caster<int_ns::IntWithOffset<Offset>> {
-  PYBIND11_TYPE_CASTER(int_ns::IntWithOffset<Offset>, const_name("swtest_base.offset") + const_name<Offset>());
+  
+  NB_TYPE_CASTER(int_ns::IntWithOffset<Offset>, const_name("swtest_base.offset") + const_name<Offset>());
 
-  bool load(handle src, bool) {
+  bool from_python(handle src, uint8_t, cleanup_list *) noexcept {
     /* Extract PyObject from handle */
     PyObject *source = src.ptr();
     /* Try converting into a Python integer value */
@@ -26,9 +28,10 @@ struct type_caster<int_ns::IntWithOffset<Offset>> {
     return !(value.Get() == -1 && !PyErr_Occurred());
   }
 
-  static handle cast(int_ns::IntWithOffset<Offset> src, return_value_policy /* policy */, handle /* parent */) {
+  static handle from_cpp(const int_ns::IntWithOffset<Offset> &src, rv_policy, cleanup_list *) {
     return PyLong_FromLong(src.Get());
   }
 };
 
-}  // namespace pybind11::detail
+NAMESPACE_END(detail)
+NAMESPACE_END(NB_NAMESPACE)
