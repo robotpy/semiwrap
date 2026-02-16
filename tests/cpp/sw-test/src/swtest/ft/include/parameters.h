@@ -1,6 +1,9 @@
 
 #pragma once
 
+#include <memory>
+#include <functional>
+
 //
 // Various tests related to function parameters
 //
@@ -75,9 +78,9 @@ bool fnParamDisableAllNone(std::shared_ptr<Param> p1, std::shared_ptr<Param> p2)
     return (bool)p1 && (bool)p2;
 }
 
-bool fnParamAutoDisableNone(std::function<void()> fn)
+bool fnParamEnableAllNone(std::shared_ptr<Param> p1, std::shared_ptr<Param> p2)
 {
-    return (bool)fn;
+    return (bool)p1 && (bool)p2;
 }
 
 bool fnParamAllowNone(std::function<void()> fn)

@@ -126,13 +126,13 @@ _int32_types = frozenset(_gen_int_types())
 
 
 _rvp_map = {
-    ReturnValuePolicy.take_ownership: "py::return_value_policy::take_ownership",
-    ReturnValuePolicy.copy: "py::return_value_policy::copy",
-    ReturnValuePolicy.move: "py::return_value_policy::move",
-    ReturnValuePolicy.reference: "py::return_value_policy::reference",
-    ReturnValuePolicy.reference_internal: "py::return_value_policy::reference_internal",
+    ReturnValuePolicy.take_ownership: "nb::rv_policy::take_ownership",
+    ReturnValuePolicy.copy: "nb::rv_policy::copy",
+    ReturnValuePolicy.move: "nb::rv_policy::move",
+    ReturnValuePolicy.reference: "nb::rv_policy::reference",
+    ReturnValuePolicy.reference_internal: "nb::rv_policy::reference_internal",
     ReturnValuePolicy.automatic: "",
-    ReturnValuePolicy.automatic_reference: "py::return_value_policy::automatic_reference",
+    ReturnValuePolicy.automatic_reference: "nb::rv_policy::automatic_reference",
 }
 
 # fmt: off
@@ -747,7 +747,7 @@ class AutowrapVisitor:
             py_name=py_name,
             scope_var=scope_var,
             var_name=var_name,
-            nodelete=class_data.nodelete,
+            never_destruct=class_data.never_destruct,
             final=class_decl.final,
             doc=doc,
             bases=bases,
@@ -755,7 +755,6 @@ class AutowrapVisitor:
             user_typealias=user_typealias,
             constants=constants,
             inline_code=class_data.inline_code or "",
-            force_multiple_inheritance=class_data.force_multiple_inheritance,
             is_polymorphic=is_polymorphic,
         )
 
@@ -985,6 +984,7 @@ class AutowrapVisitor:
             is_array = True
             array_size = _fmt_array_size(f.type)
             cpp_type = f.type.array_of.format()
+            self.hctx.need_ndarray_h = True
         else:
             cpp_type = f.type.format()
 
@@ -1109,7 +1109,7 @@ class AutowrapVisitor:
             # Use cpp_code to setup the operator
             if fctx.cpp_code is None:
                 if len(method.parameters) == 0:
-                    fctx.cpp_code = f"{operator} py::self"
+                    fctx.cpp_code = f"{operator} nb::self"
                 else:
                     ptype, _, _, _ = _count_and_unwrap(method.parameters[0].type)
                     if (
@@ -1117,10 +1117,10 @@ class AutowrapVisitor:
                         and isinstance(ptype.typename.segments[-1], NameSpecifier)
                         and ptype.typename.segments[-1].name == cdata.ctx.cpp_name
                     ):
-                        # don't try to predict the type, use py::self instead
-                        fctx.cpp_code = f"py::self {operator} py::self"
+                        # don't try to predict the type, use nb::self instead
+                        fctx.cpp_code = f"nb::self {operator} nb::self"
                     else:
-                        fctx.cpp_code = f"py::self {operator} {fctx.all_params[0].cpp_type_no_const}()"
+                        fctx.cpp_code = f"nb::self {operator} {fctx.all_params[0].cpp_type_no_const}()"
 
         if method.const:
             fctx.const = True
@@ -1194,14 +1194,14 @@ class AutowrapVisitor:
                     f"{cdata.cls_key}::{method_name}: cannot specify virtual_xform for a non-virtual method"
                 )
 
-            # pybind11 doesn't support this, user must fix it
+            # nanobind doesn't support this, user must fix it
             if (
                 method.ref_qualifier == "&&"
                 and not method_data.ignore_py
                 and not method_data.cpp_code
             ):
                 raise ValueError(
-                    f"{cdata.cls_key}::{method_name}: has && ref-qualifier which cannot be directly bound by pybind11, must specify cpp_code or ignore_py"
+                    f"{cdata.cls_key}::{method_name}: has && ref-qualifier which cannot be directly bound by nanobind, must specify cpp_code or ignore_py"
                 )
 
     def _on_class_method_process_overload_only(
@@ -1258,7 +1258,7 @@ class AutowrapVisitor:
         # - was going to add a FunctionContext for it, but.. this is way easier
         ctx.add_default_constructor = (
             not ctx.has_constructor
-            and not class_data.nodelete
+            and not class_data.never_destruct
             and not class_data.force_no_default_constructor
         )
 
@@ -1355,7 +1355,7 @@ class AutowrapVisitor:
 
         # Use this if one of the parameter types don't quite match
         param_override = data.param_override
-        fn_disable_none = data.disable_none
+        fn_enable_none = data.enable_none
 
         # keep track of param name changes so we can automatically update
         # documentation
@@ -1377,7 +1377,7 @@ class AutowrapVisitor:
                 i,
                 p,
                 p_name,
-                fn_disable_none,
+                fn_enable_none,
                 po,
                 param_remap,
                 auto_types,
@@ -1528,7 +1528,7 @@ class AutowrapVisitor:
         i: int,
         p: Parameter,
         p_name: str,
-        fn_disable_none: typing.Optional[bool],
+        fn_enable_none: typing.Optional[bool],
         param_override: ParamData,
         param_remap: typing.Dict[str, str],
         auto_types: typing.List[str],
@@ -1567,7 +1567,7 @@ class AutowrapVisitor:
         # - needs to override some things
         param_is_out = False
         default = None
-        disable_none = fn_disable_none
+        enable_none = fn_enable_none
         if param_override is not _default_param_data:
             param_is_out = param_override.force_out
             if param_override.name:
@@ -1579,8 +1579,8 @@ class AutowrapVisitor:
                 default = param_override.default
             if param_override.no_default:
                 default = None
-            if param_override.disable_none is not None:
-                disable_none = param_override.disable_none
+            if param_override.enable_none is not None:
+                enable_none = param_override.enable_none
 
         py_pname = p_name
         if iskeyword(py_pname):
@@ -1589,14 +1589,10 @@ class AutowrapVisitor:
         if orig_pname != py_pname:
             param_remap[orig_pname] = py_pname
 
-        # Autodetect disable_none if not explicitly specified
-        if disable_none is None:
-            disable_none = cpp_type.startswith("std::function")
-
-        if disable_none:
-            py_arg = f'py::arg("{py_pname}").none(false)'
+        if enable_none:
+            py_arg = f'nb::arg("{py_pname}").none()'
         else:
-            py_arg = f'py::arg("{py_pname}")'
+            py_arg = f'nb::arg("{py_pname}")'
 
         #
         # Default parameter
@@ -1720,6 +1716,7 @@ class AutowrapVisitor:
         elif len(ret_params) > 1:
             t = ",".join([p.cpp_retname for p in ret_params])
             lambda_ret = f"return std::make_tuple({t});"
+            self._add_user_type_caster("std::tuple")
 
         # Temporary values to store out parameters in
         if tmp_params:
@@ -1782,31 +1779,26 @@ class AutowrapVisitor:
             p_name = pctx.arg_name
             if p_name in buffer_params:
                 bufinfo = buffer_params.pop(p_name)
-                bname = f"__{bufinfo.src}"
 
-                pctx.call_name = f"({pctx.cpp_type}*){bname}.ptr"
-                pctx.cpp_type = "const py::buffer"
-                pctx.full_cpp_type = "const py::buffer&"
-
-                # this doesn't seem to be true for bytearrays, which is silly
-                # x_lambda_pre.append(
-                #     f'if (PyBuffer_IsContiguous((Py_buffer*){p_name}.ptr(), \'C\') == 0) throw py::value_error("{p_name}: buffer must be contiguous")'
-                # )
-
-                # TODO: check for dimensions, strides, other dangerous things
+                self.hctx.need_ndarray_h = True
+                pctx.call_name = f"{p_name}.data()"
 
                 # bufinfo was validated and converted before it got here
                 pctx.category = ParamCategory.IN
+                cpp_type = pctx.cpp_type
                 if bufinfo.type is BufferType.IN:
-                    lambda_pre += [f"auto {bname} = {p_name}.request(false)"]
-                else:
-                    lambda_pre += [f"auto {bname} = {p_name}.request(true)"]
+                    pctx.cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::ro, nb::c_contig>"
+                    pctx.full_cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::ro, nb::c_contig>&"
 
-                lambda_pre += [f"{bufinfo.len} = {bname}.size * {bname}.itemsize"]
+                else:
+                    pctx.cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::c_contig>"
+                    pctx.full_cpp_type = f"const nb::ndarray<{cpp_type}, nb::shape<-1>, nb::device::cpu, nb::c_contig>&"
+
+                lambda_pre += [f"{bufinfo.len} = {p_name}.size()"]
 
                 if bufinfo.minsz:
                     lambda_pre.append(
-                        f'if ({bufinfo.len} < {bufinfo.minsz}) throw py::value_error("{p_name}: minimum buffer size is {bufinfo.minsz}")'
+                        f'if ({bufinfo.len} < {bufinfo.minsz}) throw nb::value_error("{p_name}: minimum buffer size is {bufinfo.minsz}")'
                     )
 
             elif p_name in buflen_params:

@@ -158,59 +158,59 @@ def test_inheritance_pygrandchild():
             pass
 
 
-def test_inheritance_mchild():
-    # child
-    c = ft.IMChild()
-    assert c.baseOnly() == "base::baseOnly"
-    assert c.baseAndChild() == "mchild::baseAndChild"
-    assert c.baseAndChildFinal() == "mchild::baseAndChildFinal"
-    assert c.baseAndGrandchild() == "base::baseAndGrandchild"
+if False:
 
-    # assert c.getI() == 42
+    def test_inheritance_mchild():
+        # child
+        c = ft.IMChild()
+        assert c.baseOnly() == "base::baseOnly"
+        assert c.baseAndChild() == "mchild::baseAndChild"
+        assert c.baseAndChildFinal() == "mchild::baseAndChildFinal"
+        assert c.baseAndGrandchild() == "base::baseAndGrandchild"
 
-    # C++ function should see the same thing
-    assert getBaseOnly(c) == "base::baseOnly"
-    assert getBaseAndChild(c) == "mchild::baseAndChild"
-    assert getBaseAndChildFinal(c) == "mchild::baseAndChildFinal"
-    assert getBaseAndGrandchild(c) == "base::baseAndGrandchild"
+        # assert c.getI() == 42
 
-    # docstring check
-    assert _getdoc(c.baseOnly) == "base::baseOnly"
-    assert _getdoc(c.baseAndChild) == "mchild::baseAndChild"
-    assert _getdoc(c.baseAndChildFinal) == "mchild::baseAndChildFinal"
-    assert _getdoc(c.baseAndGrandchild) == "base::baseAndGrandchild"
+        # C++ function should see the same thing
+        assert getBaseOnly(c) == "base::baseOnly"
+        assert getBaseAndChild(c) == "mchild::baseAndChild"
+        assert getBaseAndChildFinal(c) == "mchild::baseAndChildFinal"
+        assert getBaseAndGrandchild(c) == "base::baseAndGrandchild"
 
+        # docstring check
+        assert _getdoc(c.baseOnly) == "base::baseOnly"
+        assert _getdoc(c.baseAndChild) == "mchild::baseAndChild"
+        assert _getdoc(c.baseAndChildFinal) == "mchild::baseAndChildFinal"
+        assert _getdoc(c.baseAndGrandchild) == "base::baseAndGrandchild"
 
-class PyIMChild(ft.IMChild):
-    def baseAndChild(self):
-        return "pymchild::baseAndChild"
+    class PyIMChild(ft.IMChild):
+        def baseAndChild(self):
+            return "pymchild::baseAndChild"
 
-    def baseAndPyChild(self):
-        return "pymchild::baseAndPyChild"
+        def baseAndPyChild(self):
+            return "pymchild::baseAndPyChild"
 
-    # baseAndChildFinal is final, so even though it's overridden here, it won't
-    # work in C++ land
-    # .. would be nice if the pybind11 metaclass detected that, but probably
-    #    will never happen
-    def baseAndChildFinal(self):
-        return "pymchild::baseAndChildFinal"
+        # baseAndChildFinal is final, so even though it's overridden here, it won't
+        # work in C++ land
+        # .. would be nice if the pybind11 metaclass detected that, but probably
+        #    will never happen
+        def baseAndChildFinal(self):
+            return "pymchild::baseAndChildFinal"
 
+    def test_inheritance_pymchild():
+        # child
+        pyc = PyIMChild()
+        assert pyc.baseOnly() == "base::baseOnly"
+        assert pyc.baseAndChild() == "pymchild::baseAndChild"
+        assert pyc.baseAndPyChild() == "pymchild::baseAndPyChild"
+        assert pyc.baseAndChildFinal() == "pymchild::baseAndChildFinal"
+        assert pyc.baseAndGrandchild() == "base::baseAndGrandchild"
 
-def test_inheritance_pymchild():
-    # child
-    pyc = PyIMChild()
-    assert pyc.baseOnly() == "base::baseOnly"
-    assert pyc.baseAndChild() == "pymchild::baseAndChild"
-    assert pyc.baseAndPyChild() == "pymchild::baseAndPyChild"
-    assert pyc.baseAndChildFinal() == "pymchild::baseAndChildFinal"
-    assert pyc.baseAndGrandchild() == "base::baseAndGrandchild"
-
-    # C++ function should see the same thing, except the final function can't be overridden by python
-    assert getBaseOnly(pyc) == "base::baseOnly"
-    assert getBaseAndChild(pyc) == "pymchild::baseAndChild"
-    assert getBaseAndPyChild(pyc) == "pymchild::baseAndPyChild"
-    assert getBaseAndChildFinal(pyc) == "mchild::baseAndChildFinal"
-    assert getBaseAndGrandchild(pyc) == "base::baseAndGrandchild"
+        # C++ function should see the same thing, except the final function can't be overridden by python
+        assert getBaseOnly(pyc) == "base::baseOnly"
+        assert getBaseAndChild(pyc) == "pymchild::baseAndChild"
+        assert getBaseAndPyChild(pyc) == "pymchild::baseAndPyChild"
+        assert getBaseAndChildFinal(pyc) == "mchild::baseAndChildFinal"
+        assert getBaseAndGrandchild(pyc) == "base::baseAndGrandchild"
 
 
 def test_inheritance_usingparent():

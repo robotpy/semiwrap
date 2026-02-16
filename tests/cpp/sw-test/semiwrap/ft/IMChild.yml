@@ -1,6 +1,0 @@
-classes:
-  inheritance::IMOther:
-  inheritance::IMChild:
-    methods:
-      baseAndChild:
-      baseAndChildFinal:

@@ -80,10 +80,12 @@ cond_never_true = { header="cond_never_true.h", enable_if="python_version < '2'"
 # Inheritance
 IBase = "inheritance/ibase.h"
 IChild = "inheritance/ichild.h"
-IMChild = "inheritance/imchild.h"
+
+# multiple inheritance not supported by nanobind
+# IMChild = "inheritance/imchild.h"
 IGChild = "inheritance/igchild.h"
 Overloaded = "inheritance/overloaded.h"
-mvi = "inheritance/mvi.h"
+# mvi = "inheritance/mvi.h"
 usingparent = "inheritance/usingparent.h"
 
 # Protection

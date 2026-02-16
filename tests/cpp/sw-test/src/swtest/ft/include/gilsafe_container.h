@@ -13,12 +13,12 @@ public:
     static void check() {
         auto c = std::make_unique<GilsafeContainer>();
 
-        py::gil_scoped_acquire a;
+        nb::gil_scoped_acquire a;
 
-        py::object v = py::none();
+        nb::object v = nb::none();
 
         {
-            py::gil_scoped_release r;
+            nb::gil_scoped_release r;
             c->assign(v);
             c.reset();
         }

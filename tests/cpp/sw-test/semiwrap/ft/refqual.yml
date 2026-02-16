@@ -6,6 +6,7 @@ classes:
   RefQuals:
     methods:
       fn1:
+        ignore: true # TODO: can nanobind bind this? doesn't seem like it
       fn2:
         ignore_py: true
         trampoline_cpp_code: |

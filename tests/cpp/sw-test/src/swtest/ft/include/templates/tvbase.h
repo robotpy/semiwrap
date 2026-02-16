@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 template <int N>
 struct TVParam {
     int get() const {

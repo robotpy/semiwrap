@@ -68,7 +68,7 @@ class CacheEntry:
         if not hasattr(self, "_type_casters_path"):
             raw = self._get_pkgconf_data("--path")
             pc_path = pathlib.Path(raw)
-            type_caster_cfg = pc_path.with_suffix(".pybind11.json")
+            type_caster_cfg = pc_path.with_suffix(".nanobind.json")
             if type_caster_cfg.exists():
                 self._type_casters_path = type_caster_cfg
             else:

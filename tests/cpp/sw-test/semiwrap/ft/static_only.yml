@@ -1,5 +1,13 @@
 classes:
   StaticOnly:
-    nodelete: true
+    never_destruct: true
     methods:
       callme:
+  StaticOnly2:
+    never_destruct: true
+    methods:
+      getInstance:
+        return_value_policy: reference
+        # no_release_gil: true
+      getNumber:
+      setNumber:

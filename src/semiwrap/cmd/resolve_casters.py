@@ -1,6 +1,6 @@
 """
 Creates a per-module data file mapping type names to header files containing
-pybind11 type caster implementations.
+nanobind type caster implementations.
 """
 
 import inspect

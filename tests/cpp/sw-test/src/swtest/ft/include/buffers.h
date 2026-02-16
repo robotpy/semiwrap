@@ -14,6 +14,10 @@ public:
         memcpy(m_buf.data(), data, len);
     }
 
+    size_t get_msize() const {
+        return m_buf.size();
+    }
+
     // out
     // - data is bytes
     // - len is input_size and output size

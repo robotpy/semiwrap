@@ -5,6 +5,8 @@ functions:
   check_different_cpp_and_py:
 classes:
   VBase:
+    force_type_casters:
+    - std::string
     methods:
       different_cpp_and_py:
         cpp_code: |
@@ -22,8 +24,8 @@ classes:
             return "py vbase pure + " + ss.str();
           }
         virtual_xform: |
-          [&](py::function &overload) {
-            auto s = py::cast<std::string>(overload());
+          [&](nb::callable overload) {
+            auto s = nb::cast<std::string>(overload());
             ss << "vbase-xform-pure ";
             ss << s;
           }
@@ -39,8 +41,8 @@ classes:
             return "py vbase impure + " + ss.str();
           }
         virtual_xform: |
-          [&](py::function &overload) {
-            auto s = py::cast<std::string>(overload());
+          [&](nb::callable overload) {
+            auto s = nb::cast<std::string>(overload());
             ss << "vbase-xform-impure ";
             ss << s;
           }
@@ -58,8 +60,8 @@ classes:
             return "py vchild pure + " + ss.str();
           }
         virtual_xform: |
-          [&](py::function &overload) {
-            auto s = py::cast<std::string>(overload());
+          [&](nb::callable overload) {
+            auto s = nb::cast<std::string>(overload());
             ss << "vchild-xform-pure ";
             ss << s;
           }
@@ -74,8 +76,8 @@ classes:
             return "py vchild impure + " + ss.str();
           }
         virtual_xform: |-
-          [&](py::function &overload) {
-            auto s = py::cast<std::string>(overload());
+          [&](nb::callable overload) {
+            auto s = nb::cast<std::string>(overload());
             ss << "vchild-xform-impure ";
             ss << s;
           }

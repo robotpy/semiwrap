@@ -16,6 +16,7 @@ from .pkgconf_cache import PkgconfCache
 from .pyproject import PyProject
 from .util import relpath_walk_up
 
+import nanobind
 import toposort
 
 
@@ -177,6 +178,10 @@ class _BuildPlanner:
         assert sw_path is not None
         self.semiwrap_type_caster_path = sw_path
 
+        self.pkgcache.add_local(
+            "nanobind", [pathlib.Path(nanobind.include_dir())], [], None
+        )
+
     def generate(self):
 
         projectcfg = self.pyproject.project
@@ -300,6 +305,7 @@ class _BuildPlanner:
 
         depends = self.pyproject.get_extension_deps(extension)
         depends.append("semiwrap")
+        depends.append("nanobind")
 
         # Search path for wrapping is dictated by package_path and wraps
         search_path, include_directories_uniq, caster_json_file, libinit_modules = (
@@ -408,7 +414,7 @@ class _BuildPlanner:
             # so ensure the build directory's trampolines directory is searched
             # first.
             include_paths=(TrampolineIncludeRoot(), *tuple(cached_dep.include_path)),
-            depends=tuple(self._resolve_dep(dep) for dep in depends),
+            depends=tuple(self._resolve_dep(dep) for dep in depends) + ("nanobind",),
         )
         yield local_dep
         self.local_dependencies[local_dep.name] = local_dep
@@ -435,40 +441,41 @@ class _BuildPlanner:
         #   but if we need to allow that then will need to declare subpackages in pyproject.toml
         # .. this breaks if there are sub-sub packages, don't do that please
 
-        base_pyi_elems = package_name.split(".")
+        # .. if you are building two extensions that both have subpackages, this will
+        #    likely also fail. Don't do that either.
+        #    - https://github.com/mesonbuild/meson/issues/2320 stands in the way of fixing
+        #      that problem when using meson
 
         if subpackages:
-            pyi_elems = base_pyi_elems + ["__init__.pyi"]
-            pyi_args = [
-                pathlib.PurePath(*pyi_elems).as_posix(),
-                OutputFile("__init__.pyi"),
-            ]
-            for subpackage in subpackages:
-                pyi_elems = base_pyi_elems + [f"{subpackage}.pyi"]
-                pyi_args += [
-                    pathlib.PurePath(*pyi_elems).as_posix(),
-                    OutputFile(f"{subpackage}.pyi"),
-                ]
-
-            self.pyi_targets.append(
-                BuildTarget(
-                    command="make-pyi",
-                    args=(package_name, *pyi_args, "--"),
-                    install_path=package_path / module_name,
-                )
-            )
-
-        else:
-            base_pyi_elems[-1] = f"{base_pyi_elems[-1]}.pyi"
-
             self.pyi_targets.append(
                 BuildTarget(
                     command="make-pyi",
                     args=(
                         package_name,
-                        pathlib.PurePath(*base_pyi_elems).as_posix(),
+                        OutputFile("__init__.pyi"),
+                    ),
+                    install_path=package_path / module_name,
+                )
+            )
+
+            for subpackage in subpackages:
+                self.pyi_targets.append(
+                    BuildTarget(
+                        command="make-pyi",
+                        args=(
+                            f"{package_name}.{subpackage}",
+                            OutputFile(f"{subpackage}.pyi"),
+                        ),
+                        install_path=package_path / module_name,
+                    )
+                )
+        else:
+            self.pyi_targets.append(
+                BuildTarget(
+                    command="make-pyi",
+                    args=(
+                        package_name,
                         OutputFile(f"{module_name}.pyi"),
-                        "--",
                     ),
                     install_path=package_path,
                 )
