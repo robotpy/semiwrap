@@ -34,7 +34,7 @@ dependencies = [
     "typing-extensions",
     "pyyaml >= 5.1",
     "pybind11-stubgen ~= 2.5.1",
-    "pybind11 ~= 3.0.1",
+    "pybind11 ~= 3.0.2",
 ]
 
 [project.entry-points.hatch]
