@@ -39,7 +39,7 @@ def test_docstrings_meth():
 def test_docstrings_meth_kwd():
     assert inspect.getdoc(ft.DocClass.fn2) == inspect.cleandoc(
         """
-        fn2(self: swtest.ft._ft.DocClass, from_: typing.SupportsInt) -> None
+        fn2(self: swtest.ft._ft.DocClass, from_: typing.SupportsInt | typing.SupportsIndex) -> None
         
         Function with parameter that's a python keyword
 
@@ -51,7 +51,7 @@ def test_docstrings_meth_kwd():
 def test_docstrings_meth_rename():
     assert inspect.getdoc(ft.DocClass.fn3) == inspect.cleandoc(
         """
-        fn3(self: swtest.ft._ft.DocClass, ohai: typing.SupportsInt) -> None
+        fn3(self: swtest.ft._ft.DocClass, ohai: typing.SupportsInt | typing.SupportsIndex) -> None
         
         Function with renamed parameter
 
