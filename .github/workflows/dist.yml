@@ -39,18 +39,18 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: pre-commit/action@v3.0.1
   
   check-doc:
     runs-on: ubuntu-22.04
     
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: 3.8
     - name: Sphinx
@@ -62,12 +62,12 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: 3.8
 
@@ -78,7 +78,7 @@ jobs:
       run: python -m build
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: dist
         path: dist
@@ -89,7 +89,7 @@ jobs:
     strategy:
       max-parallel: ${{ fromJSON(needs.setup_concurrency.outputs.max-parallel).v }}
       matrix:
-        os: ["ubuntu-22.04", "macos-14", "windows-2022"]
+        os: ["ubuntu-24.04", "macos-14", "windows-2022"]
         python_version:
         - '3.8'
         - '3.9'
@@ -104,20 +104,20 @@ jobs:
         include:
         - os: macos-15-intel
           python_version: '3.8'
-        - os: ubuntu-22.04-arm
+        - os: ubuntu-24.04-arm
           python_version: '3.11'
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python_version }}
     
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: dist
         path: dist
@@ -162,14 +162,13 @@ jobs:
       max-parallel: ${{ fromJSON(needs.setup_concurrency.outputs.max-parallel).v }}
       matrix:
         container:
-        - wpilib/roborio-cross-ubuntu:2025-22.04-py313
-        - wpilib/raspbian-cross-ubuntu:2025-bookworm-22.04-py313
+        - wpilib/systemcore-cross-debian:2026-trixie-py314
 
     container:
       image: "${{ matrix.container }}"
     
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -180,13 +179,13 @@ jobs:
           key: ${{ matrix.container }}
 
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: dist
         path: dist
 
     - name: Setup cross environment
-      uses: robotpy/build-actions/setup-cross-meson@semiwrap
+      uses: robotpy/build-actions/setup-cross-meson@v2027
 
     - name: Install
       working-directory: dist
@@ -212,7 +211,7 @@ jobs:
 
     steps:
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: dist
         path: dist
