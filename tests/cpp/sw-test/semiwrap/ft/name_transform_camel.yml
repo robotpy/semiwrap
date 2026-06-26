@@ -1,0 +1,20 @@
+name_transform: camelCase
+strip_prefixes:
+- SW_
+functions:
+  CamelGetHTTPServer:
+  camel_get_foo_value:
+  SW_CamelPrefixedValue:
+classes:
+  NameTransformCamelCases:
+    attributes:
+      CamelPublicValue:
+      CamelHTTPServerValue:
+      SW_CamelAttrValue:
+    methods:
+      CamelGetHTTPServer:
+      camel_get_foo_value:
+      SW_CamelPrefixedValue:
+enums:
+  CamelTransformEnum:
+    value_prefix: SW_CamelTransformEnum
