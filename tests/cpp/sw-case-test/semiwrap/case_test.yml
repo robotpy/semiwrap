@@ -1,0 +1,13 @@
+functions:
+  makeHTTPServerValue:
+classes:
+  CapsCaseThing:
+    attributes:
+      publicHTTPValue:
+    methods:
+      getHTTPServerValue:
+      addFooValue:
+      CapsCaseThing:
+enums:
+  CapsCaseEnum:
+    value_prefix: CapsCaseEnum
