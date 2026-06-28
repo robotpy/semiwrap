@@ -6,6 +6,7 @@ import typing
 
 NameKind = typing.Literal["function", "method", "attribute", "enum_value", "parameter"]
 NameTransform = typing.Callable[[str, NameKind], str]
+KnownWords = typing.Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -39,6 +40,9 @@ class NameTransformConfig:
     #: Transform applied to function and method parameter names.
     parameter: typing.Optional[str] = None
 
+    #: Case-sensitive known words used by built-in case transforms when splitting words.
+    known_words: typing.Optional[typing.List[str]] = None
+
 
 NameTransformSpec = typing.Optional[typing.Union[str, NameTransformConfig]]
 
@@ -55,12 +59,101 @@ class NameTransforms:
 _WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|_|$)|[A-Z]?[a-z]+|[0-9]+|[A-Z]+")
 
 
-def _split_words(name: str) -> typing.List[str]:
+def _normalize_known_words(
+    known_words: typing.Optional[KnownWords],
+) -> typing.Tuple[str, ...]:
+    if not known_words:
+        return ()
+    return tuple(sorted({a for a in known_words if a}, key=len, reverse=True))
+
+
+def _split_words_no_known_words(name: str) -> typing.List[str]:
     words: typing.List[str] = []
     for part in name.replace("-", "_").split("_"):
         if not part:
             continue
         words.extend(m.group(0) for m in _WORD_RE.finditer(part))
+    return words or [name]
+
+
+def _is_known_word_boundary_match(part: str, known_word: str, pos: int) -> bool:
+    if not part.startswith(known_word, pos):
+        return False
+
+    start_ok = pos == 0 or not part[pos - 1].isupper()
+    if not start_ok:
+        return False
+
+    end = pos + len(known_word)
+    if end == len(part):
+        return True
+
+    next_char = part[end]
+    if not next_char.isupper():
+        return True
+
+    return end + 1 < len(part) and part[end + 1].islower()
+
+
+def _known_word_match_word(
+    part: str, known_word: str, pos: int
+) -> typing.Optional[str]:
+    if not _is_known_word_boundary_match(part, known_word, pos):
+        return None
+
+    end = pos + len(known_word)
+    if (
+        end < len(part)
+        and part[end] == "s"
+        and (end + 1 == len(part) or not part[end + 1].islower())
+    ):
+        return part[pos : end + 1]
+
+    return known_word
+
+
+def _split_part_with_known_words(
+    part: str, known_words: typing.Tuple[str, ...]
+) -> typing.List[str]:
+    words: typing.List[str] = []
+    pos = 0
+    segment_start = 0
+
+    while pos < len(part):
+        match = None
+        for known_word in known_words:
+            match = _known_word_match_word(part, known_word, pos)
+            if match is not None:
+                break
+
+        if match is None:
+            pos += 1
+            continue
+
+        if segment_start < pos:
+            words.extend(_split_words_no_known_words(part[segment_start:pos]))
+        words.append(match)
+        pos += len(match)
+        segment_start = pos
+
+    if segment_start < len(part):
+        words.extend(_split_words_no_known_words(part[segment_start:]))
+
+    return words
+
+
+def _split_words(
+    name: str, known_words: typing.Optional[KnownWords] = None
+) -> typing.List[str]:
+    normalized_known_words = _normalize_known_words(known_words)
+    if not normalized_known_words:
+        return _split_words_no_known_words(name)
+
+    words: typing.List[str] = []
+    for part in name.replace("-", "_").split("_"):
+        if not part:
+            continue
+        words.extend(_split_part_with_known_words(part, normalized_known_words))
     return words or [name]
 
 
@@ -70,31 +163,43 @@ def _cap(word: str) -> str:
     return word[:1].upper() + word[1:].lower()
 
 
-def none_transform(name: str, kind: NameKind) -> str:
+def none_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
     return name
 
 
-def default_transform(name: str, kind: NameKind) -> str:
+def default_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
     if kind in ("function", "method") and not name[:2].isupper():
         return f"{name[0].lower()}{name[1:]}"
     return name
 
 
-def camel_case_transform(name: str, kind: NameKind) -> str:
-    words = _split_words(name)
+def camel_case_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
+    words = _split_words(name, known_words)
     return words[0].lower() + "".join(_cap(w) for w in words[1:])
 
 
-def snake_case_transform(name: str, kind: NameKind) -> str:
-    return "_".join(w.lower() for w in _split_words(name))
+def snake_case_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
+    return "_".join(w.lower() for w in _split_words(name, known_words))
 
 
-def pascal_case_transform(name: str, kind: NameKind) -> str:
-    return "".join(_cap(w) for w in _split_words(name))
+def pascal_case_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
+    return "".join(_cap(w) for w in _split_words(name, known_words))
 
 
-def caps_case_transform(name: str, kind: NameKind) -> str:
-    return "_".join(w.upper() for w in _split_words(name))
+def caps_case_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
+    return "_".join(w.upper() for w in _split_words(name, known_words))
 
 
 _BUILTINS: typing.Dict[str, NameTransform] = {
@@ -160,12 +265,21 @@ def merge_name_transform_configs(
             if higher_cfg.parameter is not None
             else lower_cfg.parameter
         ),
+        known_words=(
+            higher_cfg.known_words
+            if higher_cfg.known_words is not None
+            else lower_cfg.known_words
+        ),
     )
 
 
-def resolve_name_transforms(spec: NameTransformSpec) -> NameTransforms:
+def resolve_name_transforms(
+    spec: NameTransformSpec,
+    known_words: typing.Optional[KnownWords] = None,
+) -> NameTransforms:
     cfg = normalize_name_transform_config(spec)
     default_spec = cfg.default or "default"
+    selected_known_words = known_words if known_words is not None else cfg.known_words
 
     function_spec = cfg.function or default_spec
     method_spec = cfg.method or default_spec
@@ -174,11 +288,11 @@ def resolve_name_transforms(spec: NameTransformSpec) -> NameTransforms:
     parameter_spec = cfg.parameter or default_spec
 
     return NameTransforms(
-        function=resolve_name_transform(function_spec),
-        method=resolve_name_transform(method_spec),
-        attribute=resolve_name_transform(attribute_spec),
-        enum_value=resolve_name_transform(enum_value_spec),
-        parameter=resolve_name_transform(parameter_spec),
+        function=resolve_name_transform(function_spec, selected_known_words),
+        method=resolve_name_transform(method_spec, selected_known_words),
+        attribute=resolve_name_transform(attribute_spec, selected_known_words),
+        enum_value=resolve_name_transform(enum_value_spec, selected_known_words),
+        parameter=resolve_name_transform(parameter_spec, selected_known_words),
     )
 
 
@@ -197,11 +311,14 @@ def name_transform_config_to_args(spec: NameTransformSpec) -> typing.List[str]:
         args.extend(["--name-transform-enum-value", cfg.enum_value])
     if cfg.parameter is not None:
         args.extend(["--name-transform-parameter", cfg.parameter])
+    if cfg.known_words is not None:
+        for known_word in cfg.known_words:
+            args.extend(["--name-transform-known-word", known_word])
     return args
 
 
 @functools.lru_cache(maxsize=None)
-def resolve_name_transform(spec: str) -> NameTransform:
+def _resolve_name_transform(spec: str) -> NameTransform:
     try:
         return _BUILTINS[spec]
     except KeyError:
@@ -211,6 +328,25 @@ def resolve_name_transform(spec: str) -> NameTransform:
         return _resolve_custom_name_transform(spec)
 
     raise ValueError(f"unknown name_transform {spec!r}")
+
+
+def resolve_name_transform(
+    spec: str, known_words: typing.Optional[KnownWords] = None
+) -> NameTransform:
+    transform = _resolve_name_transform(spec)
+    normalized_known_words = _normalize_known_words(known_words)
+    if not normalized_known_words or spec not in _BUILTINS:
+        return transform
+
+    def wrapper(name: str, kind: NameKind) -> str:
+        result = transform(name, kind, normalized_known_words)  # type: ignore[misc]
+        if not isinstance(result, str):
+            raise TypeError(
+                f"name_transform {spec!r} returned {type(result).__name__}, expected str"
+            )
+        return result
+
+    return wrapper
 
 
 def _resolve_custom_name_transform(spec: str) -> NameTransform:

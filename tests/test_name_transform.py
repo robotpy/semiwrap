@@ -204,6 +204,28 @@ def test_name_transform_mapping_merge_preserves_parameter_field():
     )
 
 
+def test_name_transform_mapping_merge_inherits_known_words():
+    merged = merge_name_transform_configs(
+        NameTransformConfig(default="snake_case", known_words=["KiB"]),
+        NameTransformConfig(method="camelCase"),
+    )
+
+    assert merged.known_words == ["KiB"]
+    transforms = resolve_name_transforms(merged)
+    assert transforms.function("GetKiBValue", "function") == "get_kib_value"
+
+
+def test_name_transform_mapping_merge_empty_known_words_override_inherited_known_words():
+    merged = merge_name_transform_configs(
+        NameTransformConfig(default="snake_case", known_words=["KiB"]),
+        NameTransformConfig(known_words=[]),
+    )
+
+    assert merged.known_words == []
+    transforms = resolve_name_transforms(merged)
+    assert transforms.function("GetKiBValue", "function") == "get_ki_b_value"
+
+
 def test_name_transform_string_replaces_all_inherited_fields():
     merged = merge_name_transform_configs(
         NameTransformConfig(default="snake_case", enum_value="PascalCase"),
@@ -238,3 +260,59 @@ def test_mapping_name_transform_can_override_parameter_kind():
     )
     assert transforms.function("GetFoo", "function") == "get_foo"
     assert transforms.parameter("http_server_value", "parameter") == "httpServerValue"
+
+
+def test_snake_case_transform_uses_configured_mixed_case_known_word():
+    transform = resolve_name_transform("snake_case", known_words=("KiB",))
+    assert transform("GetKiBValue", "function") == "get_kib_value"
+
+
+def test_snake_case_transform_without_known_word_keeps_existing_split():
+    transform = resolve_name_transform("snake_case")
+    assert transform("GetKiBValue", "function") == "get_ki_b_value"
+
+
+def test_known_word_matching_is_case_sensitive():
+    exact = resolve_name_transform("snake_case", known_words=("mDNS",))
+    mismatched = resolve_name_transform("snake_case", known_words=("MDNS",))
+
+    assert exact("GetmDNSService", "function") == "get_mdns_service"
+    assert mismatched("GetmDNSService", "function") == "getm_dns_service"
+
+
+def test_longest_known_word_match_wins():
+    transform = resolve_name_transform("snake_case", known_words=("Ki", "KiB"))
+    assert transform("GetKiBValue", "function") == "get_kib_value"
+
+
+def test_known_words_do_not_match_inside_all_caps_words():
+    transform = resolve_name_transform("snake_case", known_words=("NT", "URL"))
+    assert transform("ANTIQUE_WHITE", "attribute") == "antique_white"
+    assert transform("BURLYWOOD", "attribute") == "burlywood"
+
+
+def test_pluralized_known_words_keep_plural_suffix_at_word_boundary():
+    snake = resolve_name_transform("snake_case", known_words=("OpMode",))
+    caps = resolve_name_transform("CAPS_CASE", known_words=("OpMode",))
+
+    assert snake("PublishOpModes", "function") == "publish_opmodes"
+    assert snake("ClearOpModes", "function") == "clear_opmodes"
+    assert snake("AddOpMode", "function") == "add_opmode"
+    assert snake("GetOpModeOptions", "function") == "get_opmode_options"
+    assert snake("GetOpModesOptions", "function") == "get_opmodes_options"
+    assert caps("OpModes", "enum_value") == "OPMODES"
+    assert caps("GetOpModes", "enum_value") == "GET_OPMODES"
+
+
+def test_pluralized_known_word_suffix_requires_word_boundary():
+    transform = resolve_name_transform("snake_case", known_words=("OpMode",))
+    assert transform("OpModesetting", "function") == "opmode_setting"
+
+
+def test_resolve_name_transforms_passes_known_words_to_all_builtin_kinds():
+    transforms = resolve_name_transforms("snake_case", known_words=("KiB",))
+    assert transforms.function("GetKiBValue", "function") == "get_kib_value"
+    assert transforms.method("GetKiBValue", "method") == "get_kib_value"
+    assert transforms.attribute("GetKiBValue", "attribute") == "get_kib_value"
+    assert transforms.enum_value("KiBValue", "enum_value") == "kib_value"
+    assert transforms.parameter("KiBValue", "parameter") == "kib_value"
