@@ -53,6 +53,7 @@ def generate_wrapper(
     name_transform_attribute: typing.Optional[str],
     name_transform_enum_value: typing.Optional[str],
     name_transform_parameter: typing.Optional[str],
+    name_transform_known_words: typing.List[str],
     warn_on_missing_header: bool = True,
 ):
 
@@ -75,12 +76,21 @@ def generate_wrapper(
         attribute=name_transform_attribute,
         enum_value=name_transform_enum_value,
         parameter=name_transform_parameter,
+        known_words=name_transform_known_words or None,
     )
     selected_name_transform = merge_name_transform_configs(
         inherited_name_transform,
         data.name_transform,
     )
-    name_transforms = resolve_name_transforms(selected_name_transform)
+    selected_known_words = (
+        data.known_words
+        if data.known_words is not None
+        else selected_name_transform.known_words
+    )
+    name_transforms = resolve_name_transforms(
+        selected_name_transform,
+        known_words=selected_known_words,
+    )
 
     deptarget = None
     if dst_depfile is not None:
@@ -150,6 +160,12 @@ def make_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--name-transform-attribute")
     parser.add_argument("--name-transform-enum-value")
     parser.add_argument("--name-transform-parameter")
+    parser.add_argument(
+        "--name-transform-known-word",
+        action="append",
+        default=[],
+        dest="name_transform_known_words",
+    )
     parser.add_argument("name")
     parser.add_argument("src_yml", type=pathlib.Path)
     parser.add_argument("src_h", type=pathlib.Path)
@@ -213,6 +229,7 @@ def main():
         name_transform_attribute=args.name_transform_attribute,
         name_transform_enum_value=args.name_transform_enum_value,
         name_transform_parameter=args.name_transform_parameter,
+        name_transform_known_words=args.name_transform_known_words,
     )
 
     if args.update_yaml:

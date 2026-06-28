@@ -95,8 +95,40 @@ Mapping form can configure each kind separately:
      enum_value: PascalCase
      parameter: snake_case
 
+Known word splitting
+~~~~~~~~~~~~~~~~~~~~
+
+Built-in case transforms can split names using a case-sensitive list of known
+words. Configure project defaults in ``pyproject.toml`` with the
+``known_words`` key under ``[tool.semiwrap.name_transform]``:
+
+.. code-block:: toml
+
+   [tool.semiwrap.name_transform]
+   default = "snake_case"
+   known_words = ["KiB", "mDNS"]
+
+A YAML file can replace the project known word list for one header with a
+top-level ``known_words`` key:
+
+.. code-block:: yaml
+
+   name_transform: snake_case
+   known_words: [KiB, mDNS]
+
+When a YAML file omits ``known_words``, it uses the project known word list
+passed to ``header2dat``. When a YAML file specifies ``known_words: []``, it
+uses no known words for that header.
+
+Known word matching is case-sensitive and prefers the longest configured known
+word at each position. For example, with ``KiB`` configured,
+``GetKiBValue`` becomes ``get_kib_value`` under ``snake_case`` instead of
+``get_ki_b_value``.
+
 Mapping keys are ``default``, ``function``, ``method``, ``attribute``,
-``enum_value``, and ``parameter``. Missing kind-specific keys use ``default``.
+``enum_value``, ``parameter``, and ``known_words``. The ``known_words`` key is a list
+of strings; the other keys are transform specs. Missing kind-specific keys use
+``default``.
 Mapping values merge across precedence levels, so a YAML file can override only
 one kind while preserving project-level settings. A string value applies to
 every kind at that precedence level.
