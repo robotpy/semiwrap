@@ -95,8 +95,39 @@ Mapping form can configure each kind separately:
      enum_value: PascalCase
      parameter: snake_case
 
+Acronym-aware splitting
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Built-in case transforms can split words using a case-sensitive acronym list.
+Configure project defaults in ``pyproject.toml`` with the ``acronyms`` key under
+``[tool.semiwrap.name_transform]``:
+
+.. code-block:: toml
+
+   [tool.semiwrap.name_transform]
+   default = "snake_case"
+   acronyms = ["KiB", "mDNS"]
+
+A YAML file can replace the project acronym list for one header with a top-level
+``acronyms`` key:
+
+.. code-block:: yaml
+
+   name_transform: snake_case
+   acronyms: [KiB, mDNS]
+
+When a YAML file omits ``acronyms``, it uses the project acronym list passed to
+``header2dat``. When a YAML file specifies ``acronyms: []``, it uses no acronyms
+for that header.
+
+Acronym matching is case-sensitive and prefers the longest configured acronym at
+each position. For example, with ``KiB`` configured, ``GetKiBValue`` becomes
+``get_kib_value`` under ``snake_case`` instead of ``get_ki_b_value``.
+
 Mapping keys are ``default``, ``function``, ``method``, ``attribute``,
-``enum_value``, and ``parameter``. Missing kind-specific keys use ``default``.
+``enum_value``, ``parameter``, and ``acronyms``. The ``acronyms`` key is a list
+of strings; the other keys are transform specs. Missing kind-specific keys use
+``default``.
 Mapping values merge across precedence levels, so a YAML file can override only
 one kind while preserving project-level settings. A string value applies to
 every kind at that precedence level.

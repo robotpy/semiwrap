@@ -1,10 +1,12 @@
 import dataclasses
 import pathlib
+import pickle
 
 from cxxheaderparser.options import ParserOptions
 
 from semiwrap.autowrap.cxxparser import parse_header
 from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.cmd.header2dat import generate_wrapper
 from semiwrap.config.autowrap_yml import (
     AutowrapConfigYaml,
     ClassData,
@@ -301,6 +303,119 @@ def test_parse_header_does_not_transform_explicit_parameter_override_name(tmp_pa
     fn = hctx.functions[0]
     assert fn.filtered_params[0].arg_name == "ExactParamName"
     assert fn.filtered_params[0].py_arg == 'py::arg("ExactParamName")'
+
+
+def test_autowrap_yaml_accepts_top_level_acronyms(tmp_path):
+    yml = tmp_path / "x.yml"
+    yml.write_text("acronyms: [KiB, mDNS]\n")
+    cfg = AutowrapConfigYaml.from_file(yml)
+    assert cfg.acronyms == ["KiB", "mDNS"]
+
+
+def test_pyproject_name_transform_accepts_acronyms():
+    tool = SemiwrapToolConfig(
+        name_transform=NameTransformConfig(default="snake_case", acronyms=["KiB"])
+    )
+    ext = ExtensionModuleConfig(
+        name_transform=NameTransformConfig(method="camelCase", acronyms=["mDNS"])
+    )
+    assert tool.name_transform == NameTransformConfig(
+        default="snake_case", acronyms=["KiB"]
+    )
+    assert ext.name_transform == NameTransformConfig(
+        method="camelCase", acronyms=["mDNS"]
+    )
+
+
+def test_name_transform_config_expands_acronyms_to_repeated_command_line_flags():
+    cfg = NameTransformConfig(default="snake_case", acronyms=["KiB", "mDNS"])
+    assert name_transform_config_to_args(cfg) == [
+        "--name-transform-default",
+        "snake_case",
+        "--name-transform-acronym",
+        "KiB",
+        "--name-transform-acronym",
+        "mDNS",
+    ]
+
+
+def test_header2dat_uses_cli_acronyms_when_yaml_omits_acronyms(tmp_path):
+    header = tmp_path / "x.h"
+    yml = tmp_path / "x.yml"
+    dat = tmp_path / "x.dat"
+    dep = tmp_path / "x.d"
+
+    header.write_text("inline int GetKiBValue() { return 1; }\n")
+    yml.write_text("name_transform: snake_case\nfunctions:\n  GetKiBValue:\n")
+
+    generate_wrapper(
+        name="x",
+        src_yml=yml,
+        src_h=header,
+        src_h_root=tmp_path,
+        include_paths=[],
+        compiler_flavor="pcpp",
+        compiler_args=[],
+        pp_defines=[],
+        casters={},
+        dst_dat=dat,
+        dst_depfile=dep,
+        report_only=False,
+        name_transform_default=None,
+        name_transform_function=None,
+        name_transform_method=None,
+        name_transform_attribute=None,
+        name_transform_enum_value=None,
+        name_transform_parameter=None,
+        name_transform_acronyms=["KiB"],
+    )
+
+    with open(dat, "rb") as fp:
+        hctx = pickle.load(fp)
+
+    assert hctx.functions[0].py_name == "get_kib_value"
+
+
+def test_header2dat_yaml_acronyms_override_cli_acronyms(tmp_path):
+    header = tmp_path / "x.h"
+    yml = tmp_path / "x.yml"
+    dat = tmp_path / "x.dat"
+    dep = tmp_path / "x.d"
+
+    header.write_text("inline int GetKiBValue() { return 1; }\n")
+    yml.write_text(
+        "name_transform: snake_case\n"
+        "acronyms: []\n"
+        "functions:\n"
+        "  GetKiBValue:\n"
+    )
+
+    generate_wrapper(
+        name="x",
+        src_yml=yml,
+        src_h=header,
+        src_h_root=tmp_path,
+        include_paths=[],
+        compiler_flavor="pcpp",
+        compiler_args=[],
+        pp_defines=[],
+        casters={},
+        dst_dat=dat,
+        dst_depfile=dep,
+        report_only=False,
+        name_transform_default=None,
+        name_transform_function=None,
+        name_transform_method=None,
+        name_transform_attribute=None,
+        name_transform_enum_value=None,
+        name_transform_parameter=None,
+        name_transform_acronyms=["KiB"],
+    )
+
+    with open(dat, "rb") as fp:
+        hctx = pickle.load(fp)
+
+    assert hctx.functions[0].py_name == "get_ki_b_value"
 
 
 def test_parse_header_remaps_docs_to_transformed_parameter_names(tmp_path):

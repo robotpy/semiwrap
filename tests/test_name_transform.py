@@ -204,6 +204,28 @@ def test_name_transform_mapping_merge_preserves_parameter_field():
     )
 
 
+def test_name_transform_mapping_merge_inherits_acronyms():
+    merged = merge_name_transform_configs(
+        NameTransformConfig(default="snake_case", acronyms=["KiB"]),
+        NameTransformConfig(method="camelCase"),
+    )
+
+    assert merged.acronyms == ["KiB"]
+    transforms = resolve_name_transforms(merged)
+    assert transforms.function("GetKiBValue", "function") == "get_kib_value"
+
+
+def test_name_transform_mapping_merge_empty_acronyms_override_inherited_acronyms():
+    merged = merge_name_transform_configs(
+        NameTransformConfig(default="snake_case", acronyms=["KiB"]),
+        NameTransformConfig(acronyms=[]),
+    )
+
+    assert merged.acronyms == []
+    transforms = resolve_name_transforms(merged)
+    assert transforms.function("GetKiBValue", "function") == "get_ki_b_value"
+
+
 def test_name_transform_string_replaces_all_inherited_fields():
     merged = merge_name_transform_configs(
         NameTransformConfig(default="snake_case", enum_value="PascalCase"),
@@ -238,3 +260,35 @@ def test_mapping_name_transform_can_override_parameter_kind():
     )
     assert transforms.function("GetFoo", "function") == "get_foo"
     assert transforms.parameter("http_server_value", "parameter") == "httpServerValue"
+
+
+def test_snake_case_transform_uses_configured_mixed_case_acronym():
+    transform = resolve_name_transform("snake_case", acronyms=("KiB",))
+    assert transform("GetKiBValue", "function") == "get_kib_value"
+
+
+def test_snake_case_transform_without_acronym_keeps_existing_split():
+    transform = resolve_name_transform("snake_case")
+    assert transform("GetKiBValue", "function") == "get_ki_b_value"
+
+
+def test_acronym_matching_is_case_sensitive():
+    exact = resolve_name_transform("snake_case", acronyms=("mDNS",))
+    mismatched = resolve_name_transform("snake_case", acronyms=("MDNS",))
+
+    assert exact("GetmDNSService", "function") == "get_mdns_service"
+    assert mismatched("GetmDNSService", "function") == "getm_dns_service"
+
+
+def test_longest_acronym_match_wins():
+    transform = resolve_name_transform("snake_case", acronyms=("Ki", "KiB"))
+    assert transform("GetKiBValue", "function") == "get_kib_value"
+
+
+def test_resolve_name_transforms_passes_acronyms_to_all_builtin_kinds():
+    transforms = resolve_name_transforms("snake_case", acronyms=("KiB",))
+    assert transforms.function("GetKiBValue", "function") == "get_kib_value"
+    assert transforms.method("GetKiBValue", "method") == "get_kib_value"
+    assert transforms.attribute("GetKiBValue", "attribute") == "get_kib_value"
+    assert transforms.enum_value("KiBValue", "enum_value") == "kib_value"
+    assert transforms.parameter("KiBValue", "parameter") == "kib_value"
