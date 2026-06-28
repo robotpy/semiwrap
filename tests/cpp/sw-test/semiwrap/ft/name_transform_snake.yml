@@ -5,6 +5,11 @@ functions:
   SnakeGetHTTPServer:
   snake_get_foo_value:
   SW_SnakePrefixedValue:
+  SnakeParameterNames:
+  SnakeOverrideParameterName:
+    param_override:
+      HTTPServerValue:
+        name: ExactParamName
   SnakeRenameFunction:
     rename: ExactFunctionName
 classes:
@@ -17,6 +22,7 @@ classes:
       SnakeGetHTTPServer:
       snake_get_foo_value:
       SW_SnakePrefixedValue:
+      SnakeMethodParameters:
   NameTransformSnakeRenameCases:
     attributes:
       SnakeRenameAttribute:

@@ -4,7 +4,7 @@ import importlib
 import re
 import typing
 
-NameKind = typing.Literal["function", "method", "attribute", "enum_value"]
+NameKind = typing.Literal["function", "method", "attribute", "enum_value", "parameter"]
 NameTransform = typing.Callable[[str, NameKind], str]
 
 
@@ -36,6 +36,9 @@ class NameTransformConfig:
     #: Transform applied to enum values after semiwrap's enum prefix stripping.
     enum_value: typing.Optional[str] = None
 
+    #: Transform applied to function and method parameter names.
+    parameter: typing.Optional[str] = None
+
 
 NameTransformSpec = typing.Optional[typing.Union[str, NameTransformConfig]]
 
@@ -46,6 +49,7 @@ class NameTransforms:
     method: NameTransform
     attribute: NameTransform
     enum_value: NameTransform
+    parameter: NameTransform
 
 
 _WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|_|$)|[A-Z]?[a-z]+|[0-9]+|[A-Z]+")
@@ -103,7 +107,7 @@ _BUILTINS: typing.Dict[str, NameTransform] = {
 }
 
 
-_NAME_TRANSFORM_FIELDS = ("function", "method", "attribute", "enum_value")
+_NAME_TRANSFORM_FIELDS = ("function", "method", "attribute", "enum_value", "parameter")
 
 
 def normalize_name_transform_config(spec: NameTransformSpec) -> NameTransformConfig:
@@ -116,6 +120,7 @@ def normalize_name_transform_config(spec: NameTransformSpec) -> NameTransformCon
             method=spec,
             attribute=spec,
             enum_value=spec,
+            parameter=spec,
         )
     if isinstance(spec, NameTransformConfig):
         return spec
@@ -150,6 +155,11 @@ def merge_name_transform_configs(
             if higher_cfg.enum_value is not None
             else lower_cfg.enum_value
         ),
+        parameter=(
+            higher_cfg.parameter
+            if higher_cfg.parameter is not None
+            else lower_cfg.parameter
+        ),
     )
 
 
@@ -161,12 +171,14 @@ def resolve_name_transforms(spec: NameTransformSpec) -> NameTransforms:
     method_spec = cfg.method or default_spec
     attribute_spec = cfg.attribute or default_spec
     enum_value_spec = cfg.enum_value or default_spec
+    parameter_spec = cfg.parameter or default_spec
 
     return NameTransforms(
         function=resolve_name_transform(function_spec),
         method=resolve_name_transform(method_spec),
         attribute=resolve_name_transform(attribute_spec),
         enum_value=resolve_name_transform(enum_value_spec),
+        parameter=resolve_name_transform(parameter_spec),
     )
 
 
@@ -183,6 +195,8 @@ def name_transform_config_to_args(spec: NameTransformSpec) -> typing.List[str]:
         args.extend(["--name-transform-attribute", cfg.attribute])
     if cfg.enum_value is not None:
         args.extend(["--name-transform-enum-value", cfg.enum_value])
+    if cfg.parameter is not None:
+        args.extend(["--name-transform-parameter", cfg.parameter])
     return args
 
 

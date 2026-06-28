@@ -4,11 +4,23 @@ inline int SnakeGetHTTPServer() { return 1; }
 inline int snake_get_foo_value() { return 2; }
 inline int SW_SnakePrefixedValue() { return 3; }
 
+inline int SnakeParameterNames(int HTTPServerValue, int SomeValue) {
+  return HTTPServerValue + SomeValue;
+}
+
+inline int SnakeOverrideParameterName(int HTTPServerValue) {
+  return HTTPServerValue;
+}
+
 class NameTransformSnakeCases {
 public:
   int SnakeGetHTTPServer() { return 4; }
   int snake_get_foo_value() { return 5; }
   int SW_SnakePrefixedValue() { return 6; }
+
+  int SnakeMethodParameters(int HTTPServerValue, int SomeValue) {
+    return HTTPServerValue + SomeValue;
+  }
 
   int SnakePublicValue = 7;
   int SnakeHTTPServerValue = 8;
