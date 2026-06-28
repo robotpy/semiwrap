@@ -103,7 +103,8 @@ class ExtensionModuleConfig:
     name: Optional[str] = None
 
     #: Default name transform for this extension module. May be a string spec
-    #: or per-kind mapping for functions, methods, attributes, and enum values.
+    #: or per-kind mapping for functions, methods, attributes, enum values,
+    #: and function/method parameters.
     #: Overrides ``[tool.semiwrap].name_transform`` and is overridden by YAML files.
     name_transform: NameTransformSpec = None
 
@@ -195,8 +196,9 @@ class SemiwrapToolConfig:
     """
 
     #: Default name transform for all extension modules. May be a string spec
-    #: or per-kind mapping for functions, methods, attributes, and enum values,
-    #: unless overridden by an extension module or YAML file.
+    #: or per-kind mapping for functions, methods, attributes, enum values,
+    #: and function/method parameters, unless overridden by an extension module
+    #: or YAML file.
     name_transform: NameTransformSpec = None
 
     #: List of headers for the scan-headers tool to ignore

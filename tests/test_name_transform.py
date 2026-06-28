@@ -189,6 +189,21 @@ def test_name_transform_mapping_merge_preserves_lower_precedence_fields():
     )
 
 
+def test_name_transform_mapping_merge_preserves_parameter_field():
+    merged = merge_name_transform_configs(
+        NameTransformConfig(default="snake_case", parameter="PascalCase"),
+        NameTransformConfig(method="camelCase"),
+    )
+    assert merged == NameTransformConfig(
+        default="snake_case",
+        function=None,
+        method="camelCase",
+        attribute=None,
+        enum_value=None,
+        parameter="PascalCase",
+    )
+
+
 def test_name_transform_string_replaces_all_inherited_fields():
     merged = merge_name_transform_configs(
         NameTransformConfig(default="snake_case", enum_value="PascalCase"),
@@ -200,6 +215,7 @@ def test_name_transform_string_replaces_all_inherited_fields():
         method="camelCase",
         attribute="camelCase",
         enum_value="camelCase",
+        parameter="camelCase",
     )
 
 
@@ -209,3 +225,16 @@ def test_custom_transform_receives_enum_value_kind():
         NameTransformConfig(enum_value=f"custom: {HELPER_MODULE}:custom_transform")
     )
     assert transforms.enum_value("Thing", "enum_value") == "enum_value_Thing"
+
+
+def test_string_name_transform_applies_to_parameters():
+    transforms = resolve_name_transforms("snake_case")
+    assert transforms.parameter("HTTPServerValue", "parameter") == "http_server_value"
+
+
+def test_mapping_name_transform_can_override_parameter_kind():
+    transforms = resolve_name_transforms(
+        NameTransformConfig(default="snake_case", parameter="camelCase")
+    )
+    assert transforms.function("GetFoo", "function") == "get_foo"
+    assert transforms.parameter("http_server_value", "parameter") == "httpServerValue"
