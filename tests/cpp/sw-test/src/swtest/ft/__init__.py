@@ -133,6 +133,8 @@ from ._ft import (
     PascalPrefixedValue,
     snake_get_foo_value,
     snake_get_http_server,
+    snake_override_parameter_name,
+    snake_parameter_names,
     snake_prefixed_value,
     subpkg,
 )
@@ -258,6 +260,8 @@ __all__ = [
     "fnSimpleDefaultParam",
     "get123",
     "important_retval",
+    "snake_override_parameter_name",
+    "snake_parameter_names",
     "subpkg",
 ]
 

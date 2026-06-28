@@ -67,3 +67,14 @@ def test_rename_bypasses_name_transform_for_all_kinds():
     assert not hasattr(ft.SnakeRenameEnum, "exact_enum_value_name")
     assert not hasattr(c, "exact_method_name")
     assert not hasattr(c, "exact_attribute_name")
+
+
+def test_parameter_names_follow_name_transform():
+    assert ft.snake_parameter_names(http_server_value=10, some_value=5) == 15
+
+    c = ft.NameTransformSnakeCases()
+    assert c.snake_method_parameters(http_server_value=20, some_value=7) == 27
+
+
+def test_parameter_override_name_bypasses_name_transform():
+    assert ft.snake_override_parameter_name(ExactParamName=42) == 42

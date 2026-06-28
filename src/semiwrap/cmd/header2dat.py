@@ -52,6 +52,7 @@ def generate_wrapper(
     name_transform_method: typing.Optional[str],
     name_transform_attribute: typing.Optional[str],
     name_transform_enum_value: typing.Optional[str],
+    name_transform_parameter: typing.Optional[str],
     warn_on_missing_header: bool = True,
 ):
 
@@ -73,6 +74,7 @@ def generate_wrapper(
         method=name_transform_method,
         attribute=name_transform_attribute,
         enum_value=name_transform_enum_value,
+        parameter=name_transform_parameter,
     )
     selected_name_transform = merge_name_transform_configs(
         inherited_name_transform,
@@ -147,6 +149,7 @@ def make_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--name-transform-method")
     parser.add_argument("--name-transform-attribute")
     parser.add_argument("--name-transform-enum-value")
+    parser.add_argument("--name-transform-parameter")
     parser.add_argument("name")
     parser.add_argument("src_yml", type=pathlib.Path)
     parser.add_argument("src_h", type=pathlib.Path)
@@ -209,6 +212,7 @@ def main():
         name_transform_method=args.name_transform_method,
         name_transform_attribute=args.name_transform_attribute,
         name_transform_enum_value=args.name_transform_enum_value,
+        name_transform_parameter=args.name_transform_parameter,
     )
 
     if args.update_yaml:

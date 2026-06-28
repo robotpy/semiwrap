@@ -363,6 +363,9 @@ class AutowrapVisitor:
         self.enum_value_name_transform = functools.partial(
             self.name_transforms.enum_value, kind="enum_value"
         )
+        self.parameter_name_transform = functools.partial(
+            self.name_transforms.parameter, kind="parameter"
+        )
         self.types = set()
         self.user_types = set()
 
@@ -1597,10 +1600,12 @@ class AutowrapVisitor:
         param_is_out = False
         default = None
         disable_none = fn_disable_none
+        explicit_param_name = False
         if param_override is not _default_param_data:
             param_is_out = param_override.force_out
             if param_override.name:
                 p_name = param_override.name
+                explicit_param_name = True
             if param_override.x_type:
                 cpp_type = param_override.x_type
                 self._add_user_type_caster(cpp_type)
@@ -1612,8 +1617,14 @@ class AutowrapVisitor:
                 disable_none = param_override.disable_none
 
         py_pname = p_name
+        if not explicit_param_name:
+            py_pname = self.parameter_name_transform(py_pname)
+
         if iskeyword(py_pname):
             py_pname = f"{py_pname}_"
+        if not py_pname.isidentifier():
+            if not self.report_only:
+                raise ValueError(f"name {py_pname!r} is not a valid identifier")
 
         if orig_pname != py_pname:
             param_remap[orig_pname] = py_pname

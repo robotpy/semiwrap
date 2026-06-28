@@ -570,8 +570,9 @@ class AutowrapConfigYaml:
     #:    - foo.h
     extra_includes_first: List[str] = dataclasses.field(default_factory=list)
 
-    #: Controls generated Python names for functions, methods, attributes, and enum values.
-    #: May be a string transform spec or a per-kind mapping. Built-ins are none,
+    #: Controls generated Python names for functions, methods, attributes, enum values,
+    #: and function/method parameters. May be a string transform spec or a
+    #: per-kind mapping. Built-ins are none,
     #: default, camelCase, snake_case, PascalCase, CAPS_CASE. Custom transforms
     #: use ``custom: package.name:function`` and receive ``(name, kind)``.
     name_transform: NameTransformSpec = None
