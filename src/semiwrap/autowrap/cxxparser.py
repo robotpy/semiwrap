@@ -4,6 +4,7 @@
 #
 
 import dataclasses
+import functools
 import pathlib
 import re
 import sys
@@ -14,7 +15,6 @@ if sys.version_info >= (3, 8):
     from typing import Protocol
 else:
     Protocol = object  # pragma: no cover
-
 
 import sphinxify
 from cxxheaderparser.errors import CxxParseError
@@ -92,6 +92,7 @@ from .context import (
     TrampolineData,
 )
 
+from ..name_transform import NameTransforms, resolve_name_transforms
 from ..util import relpath_walk_up
 
 
@@ -342,12 +343,29 @@ class AutowrapVisitor:
         gendata: GeneratorData,
         casters: CastersData,
         report_only: bool,
+        name_transforms: typing.Optional[NameTransforms] = None,
     ) -> None:
         self.hctx = hctx
         self.gendata = gendata
         self.user_cfg = gendata.data
         self.report_only = report_only
         self.casters = casters
+        self.name_transforms = name_transforms or resolve_name_transforms("default")
+        self.function_name_transform = functools.partial(
+            self.name_transforms.function, kind="function"
+        )
+        self.method_name_transform = functools.partial(
+            self.name_transforms.method, kind="method"
+        )
+        self.attribute_name_transform = functools.partial(
+            self.name_transforms.attribute, kind="attribute"
+        )
+        self.enum_value_name_transform = functools.partial(
+            self.name_transforms.enum_value, kind="enum_value"
+        )
+        self.parameter_name_transform = functools.partial(
+            self.name_transforms.parameter, kind="parameter"
+        )
         self.types = set()
         self.user_types = set()
 
@@ -542,11 +560,13 @@ class AutowrapVisitor:
             full_cpp_name = f"{enum_scope}::{ename}"
             py_name = self._make_py_name(ename, enum_data)
 
-            value_prefix = enum_data.value_prefix
-            if not value_prefix:
-                value_prefix = ename
+            value_prefixes = [ename]
+            if enum_data.value_prefix and enum_data.value_prefix != ename:
+                value_prefixes.append(enum_data.value_prefix)
 
-            strip_prefixes = [f"{value_prefix}_", value_prefix]
+            strip_prefixes = []
+            for value_prefix in value_prefixes:
+                strip_prefixes.extend([f"{value_prefix}_", value_prefix])
         else:
             full_cpp_name = enum_scope
 
@@ -559,7 +579,12 @@ class AutowrapVisitor:
             values.append(
                 EnumeratorContext(
                     full_cpp_name=f"{full_cpp_name}::{name}",
-                    py_name=self._make_py_name(name, v_data, strip_prefixes),
+                    py_name=self._make_py_name(
+                        name,
+                        v_data,
+                        strip_prefixes,
+                        name_transform=self.enum_value_name_transform,
+                    ),
                     doc=self._process_doc(v.doxygen, v_data, append_prefix="  "),
                 )
             )
@@ -954,14 +979,24 @@ class AutowrapVisitor:
             return
 
         self._add_type_caster(f.type)
+        is_static_constant = f.static and (
+            f.constexpr or getattr(f.type, "const", False)
+        )
         if propdata.rename:
             py_name = propdata.rename
-        elif f.access != "public":
-            py_name = f"_{prop_name}"
-        elif iskeyword(prop_name):
-            py_name = f"{prop_name}_"
         else:
-            py_name = prop_name
+            name_transform = (
+                self.enum_value_name_transform
+                if is_static_constant
+                else self.attribute_name_transform
+            )
+            py_name = self._make_py_name(
+                prop_name,
+                propdata,
+                name_transform=name_transform,
+            )
+            if f.access != "public":
+                py_name = f"_{py_name}"
 
         if propdata.access == PropAccess.auto:
             # const variables can't be written
@@ -1399,12 +1434,17 @@ class AutowrapVisitor:
         elif isinstance(fn, Method) and fn.constructor:
             py_name = "__init__"
         else:
-            # Python exposed function name converted to camelcase
+            if isinstance(fn, Method):
+                name_transform = self.method_name_transform
+            else:
+                name_transform = self.function_name_transform
+
             py_name = self._make_py_name(
-                fn_name, data, is_operator=fn.operator is not None
+                fn_name,
+                data,
+                is_operator=fn.operator is not None,
+                name_transform=name_transform,
             )
-            if not py_name[:2].isupper():
-                py_name = f"{py_name[0].lower()}{py_name[1:]}"
 
             if data.internal or internal:
                 py_name = f"_{py_name}"
@@ -1568,10 +1608,12 @@ class AutowrapVisitor:
         param_is_out = False
         default = None
         disable_none = fn_disable_none
+        explicit_param_name = False
         if param_override is not _default_param_data:
             param_is_out = param_override.force_out
             if param_override.name:
                 p_name = param_override.name
+                explicit_param_name = True
             if param_override.x_type:
                 cpp_type = param_override.x_type
                 self._add_user_type_caster(cpp_type)
@@ -1583,8 +1625,14 @@ class AutowrapVisitor:
                 disable_none = param_override.disable_none
 
         py_pname = p_name
+        if not explicit_param_name:
+            py_pname = self.parameter_name_transform(py_pname)
+
         if iskeyword(py_pname):
             py_pname = f"{py_pname}_"
+        if not py_pname.isidentifier():
+            if not self.report_only:
+                raise ValueError(f"name {py_pname!r} is not a valid identifier")
 
         if orig_pname != py_pname:
             param_remap[orig_pname] = py_pname
@@ -1868,6 +1916,7 @@ class AutowrapVisitor:
         data: HasNameData,
         strip_prefixes: typing.Optional[typing.List[str]] = None,
         is_operator: bool = False,
+        name_transform: typing.Optional[typing.Callable[[str], str]] = None,
     ):
         if data.rename:
             return data.rename
@@ -1882,6 +1931,9 @@ class AutowrapVisitor:
                     if n.isidentifier():
                         name = n
                         break
+
+        if name_transform is not None:
+            name = name_transform(name)
 
         if iskeyword(name):
             return f"{name}_"
@@ -2077,6 +2129,7 @@ def parse_header(
     parser_options: ParserOptions,
     casters: CastersData,
     report_only: bool,
+    name_transforms: typing.Optional[NameTransforms] = None,
 ) -> HeaderContext:
     user_cfg = gendata.data
 
@@ -2091,7 +2144,7 @@ def parse_header(
     )
 
     # Parse the header using a custom visitor
-    visitor = AutowrapVisitor(hctx, gendata, casters, report_only)
+    visitor = AutowrapVisitor(hctx, gendata, casters, report_only, name_transforms)
     parser = CxxParser(
         str(header_path), None, visitor, parser_options, encoding=user_cfg.encoding
     )

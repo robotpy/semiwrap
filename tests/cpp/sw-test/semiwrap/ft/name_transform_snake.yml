@@ -1,0 +1,39 @@
+name_transform: snake_case
+strip_prefixes:
+- SW_
+functions:
+  SnakeGetHTTPServer:
+  snake_get_foo_value:
+  SW_SnakePrefixedValue:
+  SnakeParameterNames:
+  SnakeOverrideParameterName:
+    param_override:
+      HTTPServerValue:
+        name: ExactParamName
+  SnakeRenameFunction:
+    rename: ExactFunctionName
+classes:
+  NameTransformSnakeCases:
+    attributes:
+      SnakePublicValue:
+      SnakeHTTPServerValue:
+      SW_SnakeAttrValue:
+    methods:
+      SnakeGetHTTPServer:
+      snake_get_foo_value:
+      SW_SnakePrefixedValue:
+      SnakeMethodParameters:
+  NameTransformSnakeRenameCases:
+    attributes:
+      SnakeRenameAttribute:
+        rename: ExactAttributeName
+    methods:
+      SnakeRenameMethod:
+        rename: ExactMethodName
+enums:
+  SnakeTransformEnum:
+    value_prefix: SW_SnakeTransformEnum
+  SnakeRenameEnum:
+    values:
+      SnakeRenameEnum_Value:
+        rename: ExactEnumValueName

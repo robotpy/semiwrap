@@ -1,0 +1,26 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["semiwrap", "hatch-meson", "hatchling"]
+
+[project]
+name = "sw-case-test"
+description = "semiwrap case transform test program"
+version = "0.0.1"
+
+[tool.hatch.build.hooks.semiwrap]
+
+[tool.hatch.build.hooks.meson]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/swcase"]
+
+[tool.semiwrap]
+name_transform.default = "snake_case"
+name_transform.enum_value = "CAPS_CASE"
+
+[tool.semiwrap.extension_modules."swcase.case_test"]
+yaml_path = "semiwrap"
+includes = ["src/swcase/include"]
+
+[tool.semiwrap.extension_modules."swcase.case_test".headers]
+case_test = "case_test.h"
