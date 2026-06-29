@@ -59,6 +59,27 @@ class NameTransforms:
 _WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|_|$)|[A-Z]?[a-z]+|[0-9]+|[A-Z]+")
 
 
+def _split_underscore_affixes(name: str) -> typing.Tuple[str, str, str]:
+    leading_len = len(name) - len(name.lstrip("_"))
+    if leading_len == len(name):
+        return name, "", ""
+
+    trailing_len = len(name) - len(name.rstrip("_"))
+    prefix = name[:leading_len]
+    suffix = name[len(name) - trailing_len :] if trailing_len else ""
+    core = name[leading_len : len(name) - trailing_len if trailing_len else len(name)]
+    return prefix, core, suffix
+
+
+def _transform_underscore_core(
+    name: str, transform: typing.Callable[[str], str]
+) -> str:
+    prefix, core, suffix = _split_underscore_affixes(name)
+    if not core:
+        return name
+    return f"{prefix}{transform(core)}{suffix}"
+
+
 def _normalize_acronyms(acronyms: typing.Optional[Acronyms]) -> typing.Tuple[str, ...]:
     if not acronyms:
         return ()
@@ -153,34 +174,46 @@ def none_transform(
 def default_transform(
     name: str, kind: NameKind, acronyms: typing.Optional[Acronyms] = None
 ) -> str:
-    if kind in ("function", "method") and not name[:2].isupper():
-        return f"{name[0].lower()}{name[1:]}"
-    return name
+    def transform_core(core: str) -> str:
+        if kind in ("function", "method") and not core[:2].isupper():
+            return f"{core[0].lower()}{core[1:]}"
+        return core
+
+    return _transform_underscore_core(name, transform_core)
 
 
 def camel_case_transform(
     name: str, kind: NameKind, acronyms: typing.Optional[Acronyms] = None
 ) -> str:
-    words = _split_words(name, acronyms)
-    return words[0].lower() + "".join(_cap(w) for w in words[1:])
+    def transform_core(core: str) -> str:
+        words = _split_words(core, acronyms)
+        return words[0].lower() + "".join(_cap(w) for w in words[1:])
+
+    return _transform_underscore_core(name, transform_core)
 
 
 def snake_case_transform(
     name: str, kind: NameKind, acronyms: typing.Optional[Acronyms] = None
 ) -> str:
-    return "_".join(w.lower() for w in _split_words(name, acronyms))
+    return _transform_underscore_core(
+        name, lambda core: "_".join(w.lower() for w in _split_words(core, acronyms))
+    )
 
 
 def pascal_case_transform(
     name: str, kind: NameKind, acronyms: typing.Optional[Acronyms] = None
 ) -> str:
-    return "".join(_cap(w) for w in _split_words(name, acronyms))
+    return _transform_underscore_core(
+        name, lambda core: "".join(_cap(w) for w in _split_words(core, acronyms))
+    )
 
 
 def caps_case_transform(
     name: str, kind: NameKind, acronyms: typing.Optional[Acronyms] = None
 ) -> str:
-    return "_".join(w.upper() for w in _split_words(name, acronyms))
+    return _transform_underscore_core(
+        name, lambda core: "_".join(w.upper() for w in _split_words(core, acronyms))
+    )
 
 
 _BUILTINS: typing.Dict[str, NameTransform] = {
