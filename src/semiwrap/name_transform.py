@@ -114,6 +114,21 @@ def _is_acronym_boundary_match(part: str, acronym: str, pos: int) -> bool:
     return end + 1 < len(part) and part[end + 1].islower()
 
 
+def _acronym_match_word(part: str, acronym: str, pos: int) -> typing.Optional[str]:
+    if not _is_acronym_boundary_match(part, acronym, pos):
+        return None
+
+    end = pos + len(acronym)
+    if (
+        end < len(part)
+        and part[end] == "s"
+        and (end + 1 == len(part) or not part[end + 1].islower())
+    ):
+        return part[pos : end + 1]
+
+    return acronym
+
+
 def _split_part_with_acronyms(
     part: str, acronyms: typing.Tuple[str, ...]
 ) -> typing.List[str]:
@@ -124,8 +139,8 @@ def _split_part_with_acronyms(
     while pos < len(part):
         match = None
         for acronym in acronyms:
-            if _is_acronym_boundary_match(part, acronym, pos):
-                match = acronym
+            match = _acronym_match_word(part, acronym, pos)
+            if match is not None:
                 break
 
         if match is None:

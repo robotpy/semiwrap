@@ -318,6 +318,24 @@ def test_acronyms_do_not_match_inside_all_caps_words():
     assert transform("BURLYWOOD", "attribute") == "burlywood"
 
 
+def test_pluralized_acronyms_keep_plural_suffix_at_word_boundary():
+    snake = resolve_name_transform("snake_case", acronyms=("OpMode",))
+    caps = resolve_name_transform("CAPS_CASE", acronyms=("OpMode",))
+
+    assert snake("PublishOpModes", "function") == "publish_opmodes"
+    assert snake("ClearOpModes", "function") == "clear_opmodes"
+    assert snake("AddOpMode", "function") == "add_opmode"
+    assert snake("GetOpModeOptions", "function") == "get_opmode_options"
+    assert snake("GetOpModesOptions", "function") == "get_opmodes_options"
+    assert caps("OpModes", "enum_value") == "OPMODES"
+    assert caps("GetOpModes", "enum_value") == "GET_OPMODES"
+
+
+def test_pluralized_acronym_suffix_requires_word_boundary():
+    transform = resolve_name_transform("snake_case", acronyms=("OpMode",))
+    assert transform("OpModesetting", "function") == "opmode_setting"
+
+
 def test_resolve_name_transforms_passes_acronyms_to_all_builtin_kinds():
     transforms = resolve_name_transforms("snake_case", acronyms=("KiB",))
     assert transforms.function("GetKiBValue", "function") == "get_kib_value"
