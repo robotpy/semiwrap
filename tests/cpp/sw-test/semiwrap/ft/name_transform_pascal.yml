@@ -1,0 +1,20 @@
+name_transform: PascalCase
+strip_prefixes:
+- SW_
+functions:
+  PascalGetHTTPServer:
+  pascal_get_foo_value:
+  SW_PascalPrefixedValue:
+classes:
+  NameTransformPascalCases:
+    attributes:
+      PascalPublicValue:
+      PascalHTTPServerValue:
+      SW_PascalAttrValue:
+    methods:
+      PascalGetHTTPServer:
+      pascal_get_foo_value:
+      SW_PascalPrefixedValue:
+enums:
+  PascalTransformEnum:
+    value_prefix: SW_PascalTransformEnum

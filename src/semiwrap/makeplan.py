@@ -12,6 +12,7 @@ import typing as T
 from .casters import PKGCONF_CASTER_EXT
 from .config.autowrap_yml import AutowrapConfigYaml
 from .config.pyproject_toml import ExtensionModuleConfig, TypeCasterConfig
+from .name_transform import merge_name_transform_configs, name_transform_config_to_args
 from .pkgconf_cache import PkgconfCache
 from .pyproject import PyProject
 from .util import relpath_walk_up
@@ -559,6 +560,11 @@ class _BuildPlanner:
             # find the source header
             h_input, h_root = self._locate_header(hdr, search_path)
 
+            selected_name_transform = merge_name_transform_configs(
+                self.pyproject.project.name_transform,
+                extension.name_transform,
+            )
+
             header2dat_args = []
             for inc in include_directories_uniq:
                 header2dat_args += ["-I", inc]
@@ -569,6 +575,10 @@ class _BuildPlanner:
             header2dat_args += ["-I", sysconfig.get_path("include")]
 
             header2dat_args += ["--cpp", self._cpp_macro]
+
+            header2dat_args.extend(
+                name_transform_config_to_args(selected_name_transform)
+            )
 
             header2dat_args.append(yml)
             header2dat_args.append(yml_input)

@@ -17,6 +17,11 @@ from ..autowrap.cxxparser import parse_header
 from ..autowrap.generator_data import GeneratorData
 from ..casters import CastersData
 from ..config.autowrap_yml import AutowrapConfigYaml
+from ..name_transform import (
+    NameTransformConfig,
+    merge_name_transform_configs,
+    resolve_name_transforms,
+)
 
 
 def format_missing(report) -> str:
@@ -42,6 +47,13 @@ def generate_wrapper(
     dst_dat: typing.Optional[pathlib.Path],
     dst_depfile: typing.Optional[pathlib.Path],
     report_only: bool,
+    name_transform_default: typing.Optional[str],
+    name_transform_function: typing.Optional[str],
+    name_transform_method: typing.Optional[str],
+    name_transform_attribute: typing.Optional[str],
+    name_transform_enum_value: typing.Optional[str],
+    name_transform_parameter: typing.Optional[str],
+    name_transform_acronyms: typing.List[str],
     warn_on_missing_header: bool = True,
 ):
 
@@ -56,6 +68,27 @@ def generate_wrapper(
             print("WARNING: could not find", src_yml)
 
         data = AutowrapConfigYaml()
+
+    inherited_name_transform = NameTransformConfig(
+        default=name_transform_default,
+        function=name_transform_function,
+        method=name_transform_method,
+        attribute=name_transform_attribute,
+        enum_value=name_transform_enum_value,
+        parameter=name_transform_parameter,
+        acronyms=name_transform_acronyms or None,
+    )
+    selected_name_transform = merge_name_transform_configs(
+        inherited_name_transform,
+        data.name_transform,
+    )
+    selected_acronyms = (
+        data.acronyms if data.acronyms is not None else selected_name_transform.acronyms
+    )
+    name_transforms = resolve_name_transforms(
+        selected_name_transform,
+        acronyms=selected_acronyms,
+    )
 
     deptarget = None
     if dst_depfile is not None:
@@ -96,6 +129,7 @@ def generate_wrapper(
             popts,
             casters,
             report_only,
+            name_transforms=name_transforms,
         )
     except Exception as e:
         raise ValueError(f"processing {src_h}") from e
@@ -118,6 +152,18 @@ def make_argparser() -> argparse.ArgumentParser:
     parser.add_argument("-I", "--include-paths", action="append", default=[])
     parser.add_argument("-D", "--defines", action="append", default=[])
     parser.add_argument("--cpp")
+    parser.add_argument("--name-transform-default")
+    parser.add_argument("--name-transform-function")
+    parser.add_argument("--name-transform-method")
+    parser.add_argument("--name-transform-attribute")
+    parser.add_argument("--name-transform-enum-value")
+    parser.add_argument("--name-transform-parameter")
+    parser.add_argument(
+        "--name-transform-acronym",
+        action="append",
+        default=[],
+        dest="name_transform_acronyms",
+    )
     parser.add_argument("name")
     parser.add_argument("src_yml", type=pathlib.Path)
     parser.add_argument("src_h", type=pathlib.Path)
@@ -175,6 +221,13 @@ def main():
         pp_defines=args.defines,
         report_only=report_only,
         warn_on_missing_header=warn_on_missing_header,
+        name_transform_default=args.name_transform_default,
+        name_transform_function=args.name_transform_function,
+        name_transform_method=args.name_transform_method,
+        name_transform_attribute=args.name_transform_attribute,
+        name_transform_enum_value=args.name_transform_enum_value,
+        name_transform_parameter=args.name_transform_parameter,
+        name_transform_acronyms=args.name_transform_acronyms,
     )
 
     if args.update_yaml:
