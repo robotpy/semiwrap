@@ -14,6 +14,7 @@ from semiwrap.config.autowrap_yml import (
     EnumValue,
     FunctionData,
     ParamData,
+    PropData,
 )
 from semiwrap.config.pyproject_toml import ExtensionModuleConfig, SemiwrapToolConfig
 from semiwrap.makeplan import BuildTarget, makeplan
@@ -416,6 +417,51 @@ def test_header2dat_yaml_known_words_override_cli_known_words(tmp_path):
         hctx = pickle.load(fp)
 
     assert hctx.functions[0].py_name == "get_ki_b_value"
+
+
+def test_static_constants_use_enum_value_transform_to_avoid_attribute_collisions(
+    tmp_path,
+):
+    header = tmp_path / "x.h"
+    header.write_text(
+        "struct ColorLike { "
+        "static constexpr int RED = 1; "
+        "double red; "
+        "static int StaticCount; "
+        "};\n"
+    )
+    cfg = AutowrapConfigYaml(
+        classes={
+            "ColorLike": ClassData(
+                attributes={
+                    "RED": PropData(),
+                    "red": PropData(),
+                    "StaticCount": PropData(),
+                }
+            )
+        }
+    )
+    gendata = GeneratorData(cfg, tmp_path / "x.yml")
+
+    hctx = parse_header(
+        "x",
+        header,
+        tmp_path,
+        gendata,
+        ParserOptions(),
+        {},
+        False,
+        name_transforms=resolve_name_transforms(
+            NameTransformConfig(default="snake_case", enum_value="CAPS_CASE")
+        ),
+    )
+
+    props = {p.cpp_name: p.py_name for p in hctx.classes[0].public_properties}
+    assert props == {
+        "RED": "RED",
+        "red": "red",
+        "StaticCount": "static_count",
+    }
 
 
 def test_parse_header_remaps_docs_to_transformed_parameter_names(tmp_path):

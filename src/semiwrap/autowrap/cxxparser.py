@@ -979,13 +979,21 @@ class AutowrapVisitor:
             return
 
         self._add_type_caster(f.type)
+        is_static_constant = f.static and (
+            f.constexpr or getattr(f.type, "const", False)
+        )
         if propdata.rename:
             py_name = propdata.rename
         else:
+            name_transform = (
+                self.enum_value_name_transform
+                if is_static_constant
+                else self.attribute_name_transform
+            )
             py_name = self._make_py_name(
                 prop_name,
                 propdata,
-                name_transform=self.attribute_name_transform,
+                name_transform=name_transform,
             )
             if f.access != "public":
                 py_name = f"_{py_name}"
