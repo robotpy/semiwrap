@@ -7,6 +7,7 @@ Arguments are:
 
 import importlib
 import importlib.abc
+import importlib.machinery
 import importlib.util
 import inspect
 import os
@@ -53,13 +54,21 @@ class _PackageFinder:
             return importlib.util.spec_from_file_location(fullname, m)
 
 
-def _import_mapped_python_modules(
+_EXTENSION_SUFFIXES = tuple(importlib.machinery.EXTENSION_SUFFIXES)
+
+
+def _is_importable_mapped_module(module_path: str) -> bool:
+    path = pathlib.Path(module_path)
+    return path.suffix == ".py" or path.name.endswith(_EXTENSION_SUFFIXES)
+
+
+def _import_mapped_modules(
     package_name: str, package_map: T.Dict[str, str], package_pkgs: T.Set[str]
 ):
     for module_name, module_path in package_map.items():
         if module_name == package_name or module_name in package_pkgs:
             continue
-        if pathlib.Path(module_path).suffix != ".py":
+        if not _is_importable_mapped_module(module_path):
             continue
         importlib.import_module(module_name)
 
@@ -157,7 +166,7 @@ def main():
 
     sys.meta_path.insert(0, _PackageFinder)
 
-    _import_mapped_python_modules(package_name, package_map, package_pkgs)
+    _import_mapped_modules(package_name, package_map, package_pkgs)
     _write_pyi(package_name, generated_pyi)
 
 
