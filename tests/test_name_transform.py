@@ -285,6 +285,12 @@ def test_longest_acronym_match_wins():
     assert transform("GetKiBValue", "function") == "get_kib_value"
 
 
+def test_acronyms_do_not_match_inside_all_caps_words():
+    transform = resolve_name_transform("snake_case", acronyms=("NT", "URL"))
+    assert transform("ANTIQUE_WHITE", "attribute") == "antique_white"
+    assert transform("BURLYWOOD", "attribute") == "burlywood"
+
+
 def test_resolve_name_transforms_passes_acronyms_to_all_builtin_kinds():
     transforms = resolve_name_transforms("snake_case", acronyms=("KiB",))
     assert transforms.function("GetKiBValue", "function") == "get_kib_value"

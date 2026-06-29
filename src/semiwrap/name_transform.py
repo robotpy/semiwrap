@@ -74,6 +74,25 @@ def _split_words_no_acronyms(name: str) -> typing.List[str]:
     return words or [name]
 
 
+def _is_acronym_boundary_match(part: str, acronym: str, pos: int) -> bool:
+    if not part.startswith(acronym, pos):
+        return False
+
+    start_ok = pos == 0 or not part[pos - 1].isupper()
+    if not start_ok:
+        return False
+
+    end = pos + len(acronym)
+    if end == len(part):
+        return True
+
+    next_char = part[end]
+    if not next_char.isupper():
+        return True
+
+    return end + 1 < len(part) and part[end + 1].islower()
+
+
 def _split_part_with_acronyms(
     part: str, acronyms: typing.Tuple[str, ...]
 ) -> typing.List[str]:
@@ -84,7 +103,7 @@ def _split_part_with_acronyms(
     while pos < len(part):
         match = None
         for acronym in acronyms:
-            if part.startswith(acronym, pos):
+            if _is_acronym_boundary_match(part, acronym, pos):
                 match = acronym
                 break
 
