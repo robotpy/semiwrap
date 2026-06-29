@@ -81,6 +81,33 @@ def test_caps_case_transform(source, expected):
     assert transform(source, "function") == expected
 
 
+@pytest.mark.parametrize(
+    "spec, source, kind, expected",
+    [
+        ("snake_case", "_now", "method", "_now"),
+        ("snake_case", "__private", "method", "__private"),
+        ("snake_case", "_GetFPGATime", "method", "_get_fpga_time"),
+        ("snake_case", "__GetFPGATime__", "method", "__get_fpga_time__"),
+        ("camelCase", "_get_foo", "method", "_getFoo"),
+        ("camelCase", "__private_name", "method", "__privateName"),
+        ("PascalCase", "_get_foo", "attribute", "_GetFoo"),
+        ("CAPS_CASE", "_kValue", "enum_value", "_K_VALUE"),
+        ("default", "_GetFoo", "method", "_getFoo"),
+        ("default", "_HTTPServer", "function", "_HTTPServer"),
+        ("none", "_GetFoo", "method", "_GetFoo"),
+    ],
+)
+def test_builtin_transforms_preserve_leading_underscores(spec, source, kind, expected):
+    transform = resolve_name_transform(spec)
+    assert transform(source, kind) == expected
+
+
+def test_builtin_known_word_matching_preserves_leading_underscores():
+    transform = resolve_name_transform("snake_case", known_words=("KiB",))
+    assert transform("_GetKiBValue", "function") == "_get_kib_value"
+    assert transform("__KiBValue__", "attribute") == "__kib_value__"
+
+
 def test_none_transform_passes_cpp_name_through():
     transform = resolve_name_transform("none")
     assert transform("GetFoo", "function") == "GetFoo"
