@@ -6,6 +6,8 @@ import dataclasses
 import re
 from typing import Dict, List, Optional, Union
 
+from ..name_transform import NameTransformSpec
+
 _arch_re = re.compile(r"\{\{\s*ARCH\s*\}\}")
 _os_re = re.compile(r"\{\{\s*OS\s*\}\}")
 
@@ -100,6 +102,12 @@ class ExtensionModuleConfig:
     #: characters replaced by underscores.
     name: Optional[str] = None
 
+    #: Default name transform for this extension module. May be a string spec
+    #: or per-kind mapping for functions, methods, attributes, enum values,
+    #: and function/method parameters.
+    #: Overrides ``[tool.semiwrap].name_transform`` and is overridden by YAML files.
+    name_transform: NameTransformSpec = None
+
     #: Name of generated file that ensures the shared libraries and any
     #: dependencies are loaded. Defaults to ``_init_XXX.py``, where XXX
     #: is the last element of the package name
@@ -186,6 +194,12 @@ class SemiwrapToolConfig:
 
     .. note:: This section is required
     """
+
+    #: Default name transform for all extension modules. May be a string spec
+    #: or per-kind mapping for functions, methods, attributes, enum values,
+    #: and function/method parameters, unless overridden by an extension module
+    #: or YAML file.
+    name_transform: NameTransformSpec = None
 
     #: List of headers for the scan-headers tool to ignore
     scan_headers_ignore: List[str] = dataclasses.field(default_factory=list)

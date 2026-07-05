@@ -24,7 +24,7 @@ if __name__ == "__main__":
     root = abspath(dirname(__file__))
     os.chdir(root)
 
-    to_install = ["sw-test-base", "sw-caster-consumer", "sw-test"]
+    to_install = ["sw-test-base", "sw-caster-consumer", "sw-test", "sw-case-test"]
 
     # First, uninstall packages
     subprocess_must_run(
