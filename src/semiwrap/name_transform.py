@@ -163,9 +163,16 @@ def _split_part_with_known_words(
     return words
 
 
+def _strip_k_camel_prefix(name: str) -> str:
+    if len(name) >= 2 and name[0] == "k" and name[1].isupper():
+        return name[1:]
+    return name
+
+
 def _split_words(
     name: str, known_words: typing.Optional[KnownWords] = None
 ) -> typing.List[str]:
+    name = _strip_k_camel_prefix(name)
     normalized_known_words = _normalize_known_words(known_words)
     if not normalized_known_words:
         return _split_words_no_known_words(name)
@@ -227,6 +234,15 @@ def pascal_case_transform(
     )
 
 
+def k_camel_case_transform(
+    name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
+) -> str:
+    return _transform_underscore_core(
+        name,
+        lambda core: "k" + "".join(_cap(w) for w in _split_words(core, known_words)),
+    )
+
+
 def caps_case_transform(
     name: str, kind: NameKind, known_words: typing.Optional[KnownWords] = None
 ) -> str:
@@ -241,6 +257,7 @@ _BUILTINS: typing.Dict[str, NameTransform] = {
     "camelCase": camel_case_transform,
     "snake_case": snake_case_transform,
     "PascalCase": pascal_case_transform,
+    "kCamelCase": k_camel_case_transform,
     "CAPS_CASE": caps_case_transform,
 }
 

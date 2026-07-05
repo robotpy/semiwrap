@@ -573,7 +573,7 @@ class AutowrapConfigYaml:
     #: Controls generated Python names for functions, methods, attributes, enum values,
     #: and function/method parameters. May be a string transform spec or a
     #: per-kind mapping. Built-ins are none,
-    #: default, camelCase, snake_case, PascalCase, CAPS_CASE. Custom transforms
+    #: default, camelCase, snake_case, PascalCase, kCamelCase, CAPS_CASE. Custom transforms
     #: use ``custom: package.name:function`` and receive ``(name, kind)``.
     name_transform: NameTransformSpec = None
 

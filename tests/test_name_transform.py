@@ -66,6 +66,47 @@ def test_pascal_case_transform(source, expected):
 @pytest.mark.parametrize(
     "source, expected",
     [
+        ("getFoo", "kGetFoo"),
+        ("GetFoo", "kGetFoo"),
+        ("get_foo", "kGetFoo"),
+        ("GET_FOO", "kGetFoo"),
+        ("HTTPServer", "kHttpServer"),
+        ("http_server", "kHttpServer"),
+        ("getFOO", "kGetFoo"),
+        ("PascalCase_LikeThis", "kPascalCaseLikeThis"),
+        ("kFooBar", "kFooBar"),
+    ],
+)
+def test_k_camel_case_transform(source, expected):
+    transform = resolve_name_transform("kCamelCase")
+    assert transform(source, "attribute") == expected
+
+
+@pytest.mark.parametrize(
+    "spec, expected",
+    [
+        ("snake_case", "foo_bar"),
+        ("camelCase", "fooBar"),
+        ("PascalCase", "FooBar"),
+        ("CAPS_CASE", "FOO_BAR"),
+    ],
+)
+def test_builtin_transforms_strip_k_camel_case_prefix(spec, expected):
+    transform = resolve_name_transform(spec)
+    assert transform("kFooBar", "enum_value") == expected
+
+
+def test_builtin_transforms_do_not_strip_non_k_camel_case_prefix():
+    snake = resolve_name_transform("snake_case")
+    k_camel = resolve_name_transform("kCamelCase")
+
+    assert snake("knownValue", "attribute") == "known_value"
+    assert k_camel("known_value", "attribute") == "kKnownValue"
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
         ("getFoo", "GET_FOO"),
         ("GetFoo", "GET_FOO"),
         ("get_foo", "GET_FOO"),
@@ -91,7 +132,10 @@ def test_caps_case_transform(source, expected):
         ("camelCase", "_get_foo", "method", "_getFoo"),
         ("camelCase", "__private_name", "method", "__privateName"),
         ("PascalCase", "_get_foo", "attribute", "_GetFoo"),
-        ("CAPS_CASE", "_kValue", "enum_value", "_K_VALUE"),
+        ("kCamelCase", "_get_foo", "attribute", "_kGetFoo"),
+        ("kCamelCase", "__private_name", "attribute", "__kPrivateName"),
+        ("CAPS_CASE", "_kValue", "enum_value", "_VALUE"),
+        ("snake_case", "_kFooBar", "enum_value", "_foo_bar"),
         ("default", "_GetFoo", "method", "_getFoo"),
         ("default", "_HTTPServer", "function", "_HTTPServer"),
         ("none", "_GetFoo", "method", "_GetFoo"),
