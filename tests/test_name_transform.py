@@ -20,6 +20,8 @@ from semiwrap.name_transform import (
         ("http_server", "http_server"),
         ("getFOO", "get_foo"),
         ("PascalCase_LikeThis", "pascal_case_like_this"),
+        ("CAN_S0", "can_s0"),
+        ("WPI_TIMESRC_V4L_EOF", "wpi_timesrc_v4l_eof"),
     ],
 )
 def test_snake_case_transform(source, expected):
@@ -115,6 +117,8 @@ def test_builtin_transforms_do_not_strip_non_k_camel_case_prefix():
         ("http_server", "HTTP_SERVER"),
         ("getFOO", "GET_FOO"),
         ("PascalCase_LikeThis", "PASCAL_CASE_LIKE_THIS"),
+        ("CAN_S0", "CAN_S0"),
+        ("WPI_TIMESRC_V4L_EOF", "WPI_TIMESRC_V4L_EOF"),
     ],
 )
 def test_caps_case_transform(source, expected):
