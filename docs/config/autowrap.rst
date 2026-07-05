@@ -145,6 +145,10 @@ Built-ins are:
   such as ``GetFoo`` or ``getFoo`` becoming ``get_foo``.
 * ``PascalCase``: converts names to upper camel case, such as ``getFoo`` or
   ``get_foo`` becoming ``GetFoo``.
+* ``kCamelCase``: converts names to ``k`` followed by upper camel case, such
+  as ``getFoo`` or ``get_foo`` becoming ``kGetFoo``. When transforming from
+  names like ``kGetFoo``, the leading ``k`` prefix is ignored by built-in case
+  splitting.
 * ``CAPS_CASE``: converts names to uppercase words separated by underscores,
   such as ``GetFoo`` or ``getFoo`` becoming ``GET_FOO``.
 
