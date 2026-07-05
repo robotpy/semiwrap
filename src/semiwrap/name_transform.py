@@ -57,6 +57,7 @@ class NameTransforms:
 
 
 _WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|_|$)|[A-Z]?[a-z]+|[0-9]+|[A-Z]+")
+_CAPS_CASE_PART_RE = re.compile(r"[A-Z0-9]+")
 
 
 def _split_underscore_affixes(name: str) -> typing.Tuple[str, str, str]:
@@ -89,10 +90,12 @@ def _normalize_known_words(
 
 
 def _split_words_no_known_words(name: str) -> typing.List[str]:
+    parts = [part for part in name.replace("-", "_").split("_") if part]
+    if parts and all(_CAPS_CASE_PART_RE.fullmatch(part) for part in parts):
+        return parts
+
     words: typing.List[str] = []
-    for part in name.replace("-", "_").split("_"):
-        if not part:
-            continue
+    for part in parts:
         words.extend(m.group(0) for m in _WORD_RE.finditer(part))
     return words or [name]
 
