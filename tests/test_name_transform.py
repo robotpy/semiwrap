@@ -22,6 +22,17 @@ from semiwrap.name_transform import (
         ("PascalCase_LikeThis", "pascal_case_like_this"),
         ("CAN_S0", "can_s0"),
         ("WPI_TIMESRC_V4L_EOF", "wpi_timesrc_v4l_eof"),
+        ("channel8Value", "channel8_value"),
+        ("pose1", "pose1"),
+        ("point2D", "point2_d"),
+        ("vector3D", "vector3_d"),
+        ("matrix4x4", "matrix4x4"),
+        ("range0To5", "range0_to5"),
+        ("getRotation2d", "get_rotation2d"),
+        ("getLED8Bit", "get_led8_bit"),
+        ("adc12BitValue", "adc12_bit_value"),
+        ("protocol2Message", "protocol2_message"),
+        ("version3Config", "version3_config"),
     ],
 )
 def test_snake_case_transform(source, expected):
