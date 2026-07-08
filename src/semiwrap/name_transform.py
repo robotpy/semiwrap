@@ -56,7 +56,7 @@ class NameTransforms:
     parameter: NameTransform
 
 
-_WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|_|$)|[A-Z]?[a-z]+|[0-9]+|[A-Z]+")
+_WORD_RE = re.compile(r"[A-Z]+[0-9]*(?=[A-Z][a-z0-9]|_|$)|[A-Z]?[a-z0-9]+|[A-Z]+[0-9]*")
 _CAPS_CASE_PART_RE = re.compile(r"[A-Z0-9]+")
 
 
