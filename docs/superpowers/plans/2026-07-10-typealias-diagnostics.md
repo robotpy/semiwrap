@@ -15,6 +15,7 @@
 - Do not use unconditional `#warning` or `#pragma message` diagnostics.
 - Probes must compile away as harmless `using` aliases when candidate types are already visible.
 - Generated probe names must be unique, deterministic, and descriptive enough to mention `typealias` and YAML.
+- Generated probe `using` lines must be sorted by probe target within each generated C++ scope.
 - Emit probes in generated `.cpp` binding scope and generated trampoline `.hpp` class scope where applicable.
 
 ---
@@ -24,7 +25,7 @@
 - Create `src/semiwrap/autowrap/typealias_probe.py`
   - Owns candidate extraction from cxxheaderparser type nodes.
   - Owns deterministic/safe generated alias-name construction.
-  - Owns C++ rendering of probe comments and `using` lines.
+  - Owns sorted C++ rendering of probe comments and `using` lines.
 - Modify `src/semiwrap/autowrap/context.py`
   - Add `typealias_probes: List[str]` to `ClassContext` and `HeaderContext`.
 - Modify `src/semiwrap/autowrap/cxxparser.py`
@@ -82,10 +83,10 @@ def test_collects_unqualified_alias_from_decorated_type():
     assert probes_for("const CantResolve&") == ["CantResolve"]
 
 
-def test_collects_template_alias_and_inner_alias():
+def test_collects_template_alias_and_inner_alias_sorted():
     assert probes_for("fancy_list<CantResolve>") == [
-        "fancy_list<CantResolve>",
         "CantResolve",
+        "fancy_list<CantResolve>",
     ]
 
 
@@ -95,12 +96,12 @@ def test_skips_builtin_std_and_global_root_targets_but_collects_template_args():
     assert probes_for("::AlreadyQualified") == []
 
 
-def test_add_typealias_probe_deduplicates_in_order():
+def test_add_typealias_probe_deduplicates_and_sorts():
     probes: list[str] = []
     add_typealias_probe(probes, "CantResolve")
     add_typealias_probe(probes, "AlsoCantResolve")
     add_typealias_probe(probes, "CantResolve")
-    assert probes == ["CantResolve", "AlsoCantResolve"]
+    assert probes == ["AlsoCantResolve", "CantResolve"]
 
 
 def test_probe_alias_name_is_deterministic_and_descriptive():
@@ -112,12 +113,15 @@ def test_probe_alias_name_is_deterministic_and_descriptive():
     )
 
 
-def test_render_typealias_probes_emits_comment_and_using_lines():
+def test_render_typealias_probes_emits_comment_and_sorted_using_lines():
     r = RenderBuffer()
-    render_typealias_probes(r, ["CantResolve"])
+    render_typealias_probes(r, ["CantResolve", "AlsoCantResolve"])
     out = r.getvalue()
     assert "semiwrap diagnostic" in out
     assert "add a typealias entry" in out
+    assert out.index(
+        "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
+    ) < out.index("using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml")
     assert (
         "using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml "
         "[[maybe_unused]] = CantResolve;"
@@ -232,6 +236,7 @@ def _collect_from_template_arg(arg: TemplateArgument, out: list[str]) -> None:
 def add_typealias_probe(probes: list[str], target: str) -> None:
     if target and target not in probes:
         probes.append(target)
+        probes.sort()
 
 
 def collect_typealias_probes_into(
@@ -274,7 +279,7 @@ def probe_alias_name(target: str) -> str:
 def render_typealias_probes(
     r: RenderBuffer, probes: T.Sequence[str], *, indent: str = ""
 ) -> None:
-    for target in probes:
+    for target in sorted(probes):
         alias = probe_alias_name(target)
         r.writeln(
             f"{indent}// semiwrap diagnostic: if this line fails because `{target}` "
