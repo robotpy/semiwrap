@@ -121,6 +121,23 @@ def parse_fixture_header_with_yaml(header_name: str, yml: pathlib.Path):
     )
 
 
+def parse_tmp_header(tmp_path: pathlib.Path, name: str, header: str, yaml: str):
+    header_path = tmp_path / f"{name}.h"
+    yaml_path = tmp_path / f"{name}.yml"
+    header_path.write_text(header)
+    yaml_path.write_text(yaml)
+    cfg = AutowrapConfigYaml.from_file(yaml_path)
+    return parse_header(
+        name,
+        header_path,
+        tmp_path,
+        GeneratorData(cfg, yaml_path),
+        ParserOptions(),
+        {},
+        False,
+    )
+
+
 def test_parse_header_collects_global_function_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     assert "AlsoCantResolve" in hctx.typealias_probes
@@ -144,10 +161,10 @@ def test_parse_header_skips_embedded_using_alias_typealias_probes():
     assert cls.typealias_probes == []
 
 
-def test_parse_header_skips_class_template_parameter_typealias_probes():
+def test_parse_header_suppresses_class_template_parameter_probe():
     hctx = parse_fixture_header("templates/tvchild.h", "tvchild.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "TVChild")
-    assert cls.typealias_probes == []
+    assert "N" not in cls.typealias_probes
 
 
 def test_parse_header_collects_missing_yaml_typealias_probes(tmp_path):
@@ -177,6 +194,55 @@ functions:
 
     assert "AlsoCantResolve" in hctx.typealias_probes
     assert "CantResolve" in cls.typealias_probes
+
+
+def test_parse_header_preserves_dependent_missing_alias_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "dependent_alias",
+        """
+#pragma once
+
+template <typename N>
+struct DependentAliasHolder {
+    DependentAliasHolder(MissingAlias<N> value);
+};
+""",
+        """
+classes:
+  DependentAliasHolder:
+    template_params:
+    - typename N
+    methods:
+      DependentAliasHolder:
+        overloads:
+          MissingAlias<N>:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "DependentAliasHolder")
+    assert cls.typealias_probes == ["MissingAlias<N>"]
+
+
+def test_parse_header_suppresses_non_type_function_template_parameter_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "non_type_template_param",
+        """
+#pragma once
+
+template <int N>
+void takes_value_template(TVParam<N> value);
+""",
+        """
+functions:
+  takes_value_template:
+    cpp_code: "[](auto) {}"
+""",
+    )
+
+    assert "N" not in hctx.typealias_probes
+    assert "TVParam<N>" in hctx.typealias_probes
 
 
 def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():

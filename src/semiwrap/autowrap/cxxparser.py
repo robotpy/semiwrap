@@ -53,6 +53,7 @@ from cxxheaderparser.types import (
     Reference,
     TemplateDecl,
     TemplateInst,
+    TemplateNonTypeParam,
     TemplateTypeParam,
     Type,
     Typedef,
@@ -380,13 +381,7 @@ class AutowrapVisitor:
         suppressed_names: typing.Set[str],
     ) -> None:
         for probe in collect_typealias_probes(dtype):
-            if not any(
-                re.search(
-                    rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])",
-                    probe,
-                )
-                for name in suppressed_names
-            ):
+            if probe not in suppressed_names:
                 add_typealias_probe(probes, probe)
 
     def _template_type_param_names(
@@ -402,7 +397,8 @@ class AutowrapVisitor:
         return {
             param.name
             for param in template.params
-            if isinstance(param, TemplateTypeParam) and param.name
+            if isinstance(param, (TemplateTypeParam, TemplateNonTypeParam))
+            and param.name
         }
 
     #
