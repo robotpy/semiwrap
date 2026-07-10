@@ -309,7 +309,8 @@ def cls_user_using(r: RenderBuffer, cls: ClassContext):
 def _collect_class_typealias_probes(cls: ClassContext, probes: T.Set[str]) -> None:
     probes.update(cls.typealias_probes)
     for ccls in cls.child_classes:
-        _collect_class_typealias_probes(ccls, probes)
+        if not ccls.template:
+            _collect_class_typealias_probes(ccls, probes)
 
 
 def cls_typealias_probes(r: RenderBuffer, classes: T.Iterable[ClassContext]) -> None:

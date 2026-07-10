@@ -87,6 +87,7 @@ from cxxheaderparser.options import ParserOptions
 
 from semiwrap.autowrap.cxxparser import parse_header
 from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.autowrap.context import ClassTemplateData
 from semiwrap.config.autowrap_yml import AutowrapConfigYaml
 
 
@@ -143,3 +144,17 @@ def test_render_wrapped_cpp_deduplicates_class_typealias_probes_in_initializer_s
     out = render_wrapped_cpp(hctx)
     probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
     assert out.count(f"using {probe}") == 1
+
+
+def test_render_wrapped_cpp_skips_templated_child_typealias_probes():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    parent = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+    child_template = next(c for c in hctx.classes if c.cpp_name == "FwdDecl")
+    child_template.template = ClassTemplateData("", "", "")
+    child_template.typealias_probes.append("ChildTemplateProbe")
+    parent.child_classes.append(child_template)
+    hctx.classes = [parent]
+
+    out = render_wrapped_cpp(hctx)
+
+    assert "semiwrap_typealias_probe_ChildTemplateProbe__add_typealias_to_yaml" not in out
