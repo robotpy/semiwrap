@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import typing as T
 
 from cxxheaderparser.types import (
@@ -49,7 +48,17 @@ _INT_TYPES = frozenset(
     ]
 )
 
-_SANITIZE_RE = re.compile(r"[^0-9A-Za-z]+")
+_ENCODE_TOKENS = {
+    "_": "_u_",
+    "<": "_lt_",
+    ">": "_gt_",
+    ",": "_comma_",
+    " ": "_space_",
+    "*": "_star_",
+    "&": "_amp_",
+    ".": "_dot_",
+    "-": "_dash_",
+}
 
 
 def _is_builtin_type(t: Type) -> bool:
@@ -126,11 +135,29 @@ def collect_typealias_probes(dt: DecoratedType | FunctionType | None) -> list[st
     return probes
 
 
+def _encode_alias_target(target: str) -> str:
+    if not target:
+        return "_empty_"
+
+    encoded: list[str] = []
+    index = 0
+    while index < len(target):
+        if target.startswith("::", index):
+            encoded.append("_scope_")
+            index += 2
+            continue
+
+        char = target[index]
+        if char.isascii() and char.isalnum():
+            encoded.append(char)
+        else:
+            encoded.append(_ENCODE_TOKENS.get(char, f"_x{ord(char):x}_"))
+        index += 1
+    return "".join(encoded)
+
+
 def probe_alias_name(target: str) -> str:
-    safe_target = target.replace("::", "_scope_")
-    safe = _SANITIZE_RE.sub("_", safe_target).strip("_")
-    if not safe:
-        safe = "unknown"
+    safe = _encode_alias_target(target)
     return f"semiwrap_typealias_probe_{safe}__add_typealias_to_yaml"
 
 

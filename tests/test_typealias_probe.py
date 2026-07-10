@@ -48,7 +48,7 @@ def test_probe_alias_name_is_deterministic_and_descriptive():
         "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
     )
     assert probe_alias_name("fancy_list<CantResolve>") == (
-        "semiwrap_typealias_probe_fancy_list_CantResolve__add_typealias_to_yaml"
+        "semiwrap_typealias_probe_fancy_u_list_lt_CantResolve_gt___add_typealias_to_yaml"
     )
 
 
@@ -69,6 +69,10 @@ def test_render_typealias_probes_emits_comment_and_sorted_using_lines():
 
 def test_probe_alias_name_distinguishes_namespaces_from_templates():
     assert probe_alias_name("A::B") != probe_alias_name("A<B>")
+
+
+def test_probe_alias_name_distinguishes_general_sanitizer_collisions():
+    assert probe_alias_name("A<B>") != probe_alias_name("A_B")
 
 
 def test_helper_uses_deferred_annotations_for_python_38_runtime_compatibility():
