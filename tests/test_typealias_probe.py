@@ -84,6 +84,8 @@ def test_helper_uses_deferred_annotations_for_python_38_runtime_compatibility():
 
 import pathlib
 
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
 from cxxheaderparser.options import ParserOptions
 
 from semiwrap.autowrap.cxxparser import parse_header
@@ -93,8 +95,8 @@ from semiwrap.config.autowrap_yml import AutowrapConfigYaml
 
 
 def parse_fixture_header(header_name: str, yaml_name: str):
-    root = pathlib.Path("tests/cpp/sw-test/src/swtest/ft/include")
-    yml = pathlib.Path("tests/cpp/sw-test/semiwrap/ft") / yaml_name
+    root = PROJECT_ROOT / "tests/cpp/sw-test/src/swtest/ft/include"
+    yml = PROJECT_ROOT / "tests/cpp/sw-test/semiwrap/ft" / yaml_name
     cfg = AutowrapConfigYaml.from_file(yml)
     return parse_header(
         pathlib.Path(header_name).stem,
@@ -108,7 +110,7 @@ def parse_fixture_header(header_name: str, yaml_name: str):
 
 
 def parse_fixture_header_with_yaml(header_name: str, yml: pathlib.Path):
-    root = pathlib.Path("tests/cpp/sw-test/src/swtest/ft/include")
+    root = PROJECT_ROOT / "tests/cpp/sw-test/src/swtest/ft/include"
     cfg = AutowrapConfigYaml.from_file(yml)
     return parse_header(
         pathlib.Path(header_name).stem,
