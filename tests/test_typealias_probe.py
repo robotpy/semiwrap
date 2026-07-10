@@ -69,6 +69,15 @@ def test_render_typealias_probes_emits_comment_and_sorted_using_lines():
     ) in out
 
 
+def test_render_typealias_probes_deduplicates_duplicate_input():
+    r = RenderBuffer()
+    render_typealias_probes(r, ["CantResolve", "CantResolve"])
+    out = r.getvalue()
+    assert out.count(
+        "using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    ) == 1
+
+
 def test_probe_alias_name_distinguishes_namespaces_from_templates():
     assert probe_alias_name("A::B") != probe_alias_name("A<B>")
 
@@ -163,6 +172,12 @@ def test_parse_header_skips_embedded_using_alias_typealias_probes():
     assert cls.typealias_probes == []
 
 
+def test_parse_header_skips_local_user_alias_template_typealias_probes():
+    hctx = parse_fixture_header("using2.h", "using2.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "Using3")
+    assert "fancy_list<int>" not in cls.typealias_probes
+
+
 def test_parse_header_suppresses_class_template_parameter_probe():
     hctx = parse_fixture_header("templates/tvchild.h", "tvchild.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "TVChild")
@@ -244,7 +259,59 @@ functions:
     )
 
     assert "N" not in hctx.typealias_probes
-    assert "TVParam<N>" in hctx.typealias_probes
+    assert "TVParam<N>" not in hctx.typealias_probes
+
+
+def test_parse_header_suppresses_method_template_dependent_alias_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "method_template_param",
+        """
+#pragma once
+
+struct MethodTemplateProbe {
+    virtual ~MethodTemplateProbe() = default;
+
+protected:
+    template <typename T>
+    void hidden(Alias<T> value) {}
+};
+""",
+        """
+classes:
+  MethodTemplateProbe:
+    methods:
+      hidden:
+        cpp_code: "[](auto&, auto) {}"
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "MethodTemplateProbe")
+    assert "T" not in cls.typealias_probes
+    assert "Alias<T>" not in cls.typealias_probes
+
+
+def test_parse_header_collects_public_generated_lambda_method_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "generated_lambda_probe",
+        """
+#pragma once
+
+struct GeneratedLambdaProbe {
+    void needs_lambda(MissingLambdaAlias value, int* out) {}
+};
+""",
+        """
+classes:
+  GeneratedLambdaProbe:
+    methods:
+      needs_lambda:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "GeneratedLambdaProbe")
+    assert "MissingLambdaAlias" in cls.typealias_probes
 
 
 def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():

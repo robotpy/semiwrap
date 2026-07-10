@@ -164,7 +164,7 @@ def probe_alias_name(target: str) -> str:
 def render_typealias_probes(
     r: RenderBuffer, probes: T.Sequence[str], *, indent: str = ""
 ) -> None:
-    for target in sorted(probes):
+    for target in sorted(set(probes)):
         alias = probe_alias_name(target)
         r.writeln(
             f"{indent}// semiwrap diagnostic: if this line fails because `{target}` "

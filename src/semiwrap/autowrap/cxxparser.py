@@ -379,10 +379,37 @@ class AutowrapVisitor:
         probes: typing.List[str],
         dtype: typing.Optional[typing.Union[DecoratedType, FunctionType]],
         suppressed_names: typing.Set[str],
+        dependent_suppressed_names: typing.Optional[typing.Set[str]] = None,
+        suppressed_template_aliases: typing.Optional[typing.Set[str]] = None,
     ) -> None:
+        dependent_suppressed_names = dependent_suppressed_names or set()
+        suppressed_template_aliases = suppressed_template_aliases or set()
         for probe in collect_typealias_probes(dtype):
-            if probe not in suppressed_names:
-                add_typealias_probe(probes, probe)
+            if probe in suppressed_names:
+                continue
+            if self._probe_references_suppressed_name(
+                probe, dependent_suppressed_names
+            ):
+                continue
+            if self._probe_uses_suppressed_template_alias(
+                probe, suppressed_template_aliases
+            ):
+                continue
+            add_typealias_probe(probes, probe)
+
+    def _probe_references_suppressed_name(
+        self, probe: str, suppressed_names: typing.Set[str]
+    ) -> bool:
+        for name in suppressed_names:
+            pattern = rf"(?<![0-9A-Za-z_]){re.escape(name)}(?![0-9A-Za-z_])"
+            if re.search(pattern, probe):
+                return True
+        return False
+
+    def _probe_uses_suppressed_template_alias(
+        self, probe: str, suppressed_aliases: typing.Set[str]
+    ) -> bool:
+        return any(probe.startswith(f"{name}<") for name in suppressed_aliases)
 
     def _template_type_param_names(
         self,
@@ -483,11 +510,13 @@ class AutowrapVisitor:
             self.hctx.typealias_probes,
             fn.return_type,
             suppressed_names,
+            suppressed_names,
         )
         for param in fn.parameters:
             self._add_typealias_probes(
                 self.hctx.typealias_probes,
                 param.type,
+                suppressed_names,
                 suppressed_names,
             )
         self.hctx.functions.append(fctx)
@@ -1184,19 +1213,32 @@ class AutowrapVisitor:
             overload_tracker,
         )
 
-        if is_constructor or state.access != "public" or is_virtual or fctx.is_overloaded:
+        if (
+            is_constructor
+            or state.access != "public"
+            or is_virtual
+            or fctx.is_overloaded
+            or fctx.genlambda
+        ):
             suppressed_names = set(cdata.local_typealias_names)
-            suppressed_names.update(self._template_type_param_names(method.template))
+            method_template_names = self._template_type_param_names(method.template)
+            suppressed_names.update(method_template_names)
+            suppressed_template_aliases = set(cdata.local_typealias_names)
+            suppressed_template_aliases.update(cdata.typealias_names)
             self._add_typealias_probes(
                 cctx.typealias_probes,
                 method.return_type,
                 suppressed_names,
+                method_template_names,
+                suppressed_template_aliases,
             )
             for param in method.parameters:
                 self._add_typealias_probes(
                     cctx.typealias_probes,
                     param.type,
                     suppressed_names,
+                    method_template_names,
+                    suppressed_template_aliases,
                 )
 
         # Update class-specific method attributes
