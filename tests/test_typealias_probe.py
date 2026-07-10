@@ -107,6 +107,20 @@ def parse_fixture_header(header_name: str, yaml_name: str):
     )
 
 
+def parse_fixture_header_with_yaml(header_name: str, yml: pathlib.Path):
+    root = pathlib.Path("tests/cpp/sw-test/src/swtest/ft/include")
+    cfg = AutowrapConfigYaml.from_file(yml)
+    return parse_header(
+        pathlib.Path(header_name).stem,
+        root / header_name,
+        root,
+        GeneratorData(cfg, yml),
+        ParserOptions(),
+        {},
+        False,
+    )
+
+
 def test_parse_header_collects_global_function_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     assert "AlsoCantResolve" in hctx.typealias_probes
@@ -128,6 +142,41 @@ def test_parse_header_skips_embedded_using_alias_typealias_probes():
     hctx = parse_fixture_header("using2.h", "using2.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "Using1")
     assert cls.typealias_probes == []
+
+
+def test_parse_header_skips_class_template_parameter_typealias_probes():
+    hctx = parse_fixture_header("templates/tvchild.h", "tvchild.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "TVChild")
+    assert cls.typealias_probes == []
+
+
+def test_parse_header_collects_missing_yaml_typealias_probes(tmp_path):
+    yml = tmp_path / "using_missing_typealias.yml"
+    yml.write_text(
+        """
+classes:
+  cr::inner::ProtectedUsing:
+    methods:
+      ProtectedUsing:
+        overloads:
+          "":
+          CantResolve:
+  u::FwdDecl:
+    attributes:
+      x:
+functions:
+  fn_using:
+    overloads:
+      AlsoCantResolve:
+      std::string:
+"""
+    )
+
+    hctx = parse_fixture_header_with_yaml("using.h", yml)
+    cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+
+    assert "AlsoCantResolve" in hctx.typealias_probes
+    assert "CantResolve" in cls.typealias_probes
 
 
 def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():

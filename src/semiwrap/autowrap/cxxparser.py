@@ -51,6 +51,7 @@ from cxxheaderparser.types import (
     PQName,
     PQNameSegment,
     Reference,
+    TemplateDecl,
     TemplateInst,
     TemplateTypeParam,
     Type,
@@ -298,6 +299,7 @@ class ClassStateData(typing.NamedTuple):
     data: ClassData
 
     typealias_names: typing.Set[str]
+    local_typealias_names: typing.Set[str]
 
     # have to defer processing these
     defer_protected_methods: typing.List[Method]
@@ -369,21 +371,39 @@ class AutowrapVisitor:
         )
         self.types = set()
         self.user_types = set()
-        self.header_typealias_names: typing.Set[str] = set()
-        self._extract_typealias(
-            self.user_cfg.typealias, self.hctx.user_typealias, self.header_typealias_names
-        )
+        self._extract_typealias(self.user_cfg.typealias, self.hctx.user_typealias, set())
 
-    def _add_matching_typealias_probes(
+    def _add_typealias_probes(
         self,
         probes: typing.List[str],
         dtype: typing.Optional[typing.Union[DecoratedType, FunctionType]],
-        typealias_names: typing.Set[str],
+        suppressed_names: typing.Set[str],
     ) -> None:
         for probe in collect_typealias_probes(dtype):
-            probe_name = probe.split("::")[-1].split("<", 1)[0].strip()
-            if probe_name in typealias_names:
+            if not any(
+                re.search(
+                    rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])",
+                    probe,
+                )
+                for name in suppressed_names
+            ):
                 add_typealias_probe(probes, probe)
+
+    def _template_type_param_names(
+        self,
+        template: typing.Optional[
+            typing.Union[TemplateDecl, typing.List[TemplateDecl]]
+        ],
+    ) -> typing.Set[str]:
+        if template is None:
+            return set()
+        if isinstance(template, list):
+            template = template[-1]
+        return {
+            param.name
+            for param in template.params
+            if isinstance(param, TemplateTypeParam) and param.name
+        }
 
     #
     # Visitor interface
@@ -462,16 +482,17 @@ class AutowrapVisitor:
             fn, data, fn_name, scope_var, False, overload_tracker
         )
         fctx.namespace = state.user_data
-        self._add_matching_typealias_probes(
+        suppressed_names = self._template_type_param_names(fn.template)
+        self._add_typealias_probes(
             self.hctx.typealias_probes,
             fn.return_type,
-            self.header_typealias_names,
+            suppressed_names,
         )
         for param in fn.parameters:
-            self._add_matching_typealias_probes(
+            self._add_typealias_probes(
                 self.hctx.typealias_probes,
                 param.type,
-                self.header_typealias_names,
+                suppressed_names,
             )
         self.hctx.functions.append(fctx)
 
@@ -503,6 +524,7 @@ class AutowrapVisitor:
             ctx.auto_typealias.append(
                 f"using {using.alias} [[maybe_unused]] = typename {ctx.full_cpp_name}::{using.alias}"
             )
+            state.user_data.local_typealias_names.add(using.alias)
 
     def on_using_declaration(self, state: AWState, using: UsingDecl) -> None:
         self._add_type_caster_pqname(using.typename)
@@ -629,6 +651,8 @@ class AutowrapVisitor:
                 inline_code=enum_data.inline_code,
             )
         )
+        if ename and isinstance(user_data, ClassStateData):
+            user_data.local_typealias_names.add(ename)
 
     #
     # Class/union/struct
@@ -814,8 +838,14 @@ class AutowrapVisitor:
         # Add to parent class or global class list
         if parent_ctx:
             parent_ctx.child_classes.append(ctx)
+            if isinstance(state.parent.user_data, ClassStateData):
+                state.parent.user_data.local_typealias_names.add(cls_name)
         else:
             self.hctx.classes.append(ctx)
+
+        local_typealias_names = {cls_name}
+        for param in class_data.template_params or []:
+            local_typealias_names.add(param.split()[-1])
 
         # Store for other events to use
         state.user_data = ClassStateData(
@@ -823,6 +853,7 @@ class AutowrapVisitor:
             cls_key=cls_key,
             data=class_data,
             typealias_names=typealias_names,
+            local_typealias_names=local_typealias_names,
             # Method data
             defer_protected_methods=[],
             defer_private_nonvirtual_methods=[],
@@ -1157,17 +1188,20 @@ class AutowrapVisitor:
             overload_tracker,
         )
 
-        self._add_matching_typealias_probes(
-            cctx.typealias_probes,
-            method.return_type,
-            cdata.typealias_names,
-        )
-        for param in method.parameters:
-            self._add_matching_typealias_probes(
+        if is_constructor or state.access != "public" or is_virtual or fctx.is_overloaded:
+            suppressed_names = set(cdata.local_typealias_names)
+            suppressed_names.update(self._template_type_param_names(method.template))
+            self._add_typealias_probes(
                 cctx.typealias_probes,
-                param.type,
-                cdata.typealias_names,
+                method.return_type,
+                suppressed_names,
             )
+            for param in method.parameters:
+                self._add_typealias_probes(
+                    cctx.typealias_probes,
+                    param.type,
+                    suppressed_names,
+                )
 
         # Update class-specific method attributes
         fctx.is_constructor = is_constructor
