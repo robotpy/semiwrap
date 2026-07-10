@@ -369,6 +369,21 @@ class AutowrapVisitor:
         )
         self.types = set()
         self.user_types = set()
+        self.header_typealias_names: typing.Set[str] = set()
+        self._extract_typealias(
+            self.user_cfg.typealias, self.hctx.user_typealias, self.header_typealias_names
+        )
+
+    def _add_matching_typealias_probes(
+        self,
+        probes: typing.List[str],
+        dtype: typing.Optional[typing.Union[DecoratedType, FunctionType]],
+        typealias_names: typing.Set[str],
+    ) -> None:
+        for probe in collect_typealias_probes(dtype):
+            probe_name = probe.split("::")[-1].split("<", 1)[0].strip()
+            if probe_name in typealias_names:
+                add_typealias_probe(probes, probe)
 
     #
     # Visitor interface
@@ -447,11 +462,17 @@ class AutowrapVisitor:
             fn, data, fn_name, scope_var, False, overload_tracker
         )
         fctx.namespace = state.user_data
-        for probe in collect_typealias_probes(fn.return_type):
-            add_typealias_probe(self.hctx.typealias_probes, probe)
+        self._add_matching_typealias_probes(
+            self.hctx.typealias_probes,
+            fn.return_type,
+            self.header_typealias_names,
+        )
         for param in fn.parameters:
-            for probe in collect_typealias_probes(param.type):
-                add_typealias_probe(self.hctx.typealias_probes, probe)
+            self._add_matching_typealias_probes(
+                self.hctx.typealias_probes,
+                param.type,
+                self.header_typealias_names,
+            )
         self.hctx.functions.append(fctx)
 
     def on_method_impl(self, state: AWNonClassBlockState, method: Method) -> None:
@@ -1136,11 +1157,17 @@ class AutowrapVisitor:
             overload_tracker,
         )
 
-        for probe in collect_typealias_probes(method.return_type):
-            add_typealias_probe(cctx.typealias_probes, probe)
+        self._add_matching_typealias_probes(
+            cctx.typealias_probes,
+            method.return_type,
+            cdata.typealias_names,
+        )
         for param in method.parameters:
-            for probe in collect_typealias_probes(param.type):
-                add_typealias_probe(cctx.typealias_probes, probe)
+            self._add_matching_typealias_probes(
+                cctx.typealias_probes,
+                param.type,
+                cdata.typealias_names,
+            )
 
         # Update class-specific method attributes
         fctx.is_constructor = is_constructor
@@ -2004,6 +2031,10 @@ class AutowrapVisitor:
         for typealias in in_ta:
             if typealias.startswith("template"):
                 out_ta.append(typealias)
+                using_pos = typealias.find(" using ")
+                if using_pos != -1:
+                    ta_name = typealias[using_pos + 7 :].split("=", 1)[0].strip()
+                    ta_names.add(ta_name.split("<", 1)[0].strip())
             else:
                 teq = typealias.find("=")
                 if teq != -1:
@@ -2203,9 +2234,6 @@ def parse_header(
         for param in tmpl_data.params:
             if isinstance(param, str):
                 visitor._add_user_type_caster(param)
-
-    # User typealias additions
-    visitor._extract_typealias(user_cfg.typealias, hctx.user_typealias, set())
 
     # Type caster
     visitor._set_type_caster_includes()
