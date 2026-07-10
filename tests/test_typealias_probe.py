@@ -78,3 +78,38 @@ def test_probe_alias_name_distinguishes_general_sanitizer_collisions():
 def test_helper_uses_deferred_annotations_for_python_38_runtime_compatibility():
     source = Path(typealias_probe.__file__).read_text()
     assert source.startswith("from __future__ import annotations\n")
+
+
+import pathlib
+
+from cxxheaderparser.options import ParserOptions
+
+from semiwrap.autowrap.cxxparser import parse_header
+from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.config.autowrap_yml import AutowrapConfigYaml
+
+
+def parse_fixture_header(header_name: str, yaml_name: str):
+    root = pathlib.Path("tests/cpp/sw-test/src/swtest/ft/include")
+    yml = pathlib.Path("tests/cpp/sw-test/semiwrap/ft") / yaml_name
+    cfg = AutowrapConfigYaml.from_file(yml)
+    return parse_header(
+        header_name,
+        root / header_name,
+        root,
+        GeneratorData(cfg, yml),
+        ParserOptions(),
+        {},
+        False,
+    )
+
+
+def test_parse_header_collects_global_function_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    assert "AlsoCantResolve" in hctx.typealias_probes
+
+
+def test_parse_header_collects_class_constructor_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+    assert "CantResolve" in cls.typealias_probes

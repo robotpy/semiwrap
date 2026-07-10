@@ -91,6 +91,7 @@ from .context import (
     TemplateInstanceContext,
     TrampolineData,
 )
+from .typealias_probe import add_typealias_probe, collect_typealias_probes
 
 from ..name_transform import NameTransforms, resolve_name_transforms
 from ..util import relpath_walk_up
@@ -446,6 +447,11 @@ class AutowrapVisitor:
             fn, data, fn_name, scope_var, False, overload_tracker
         )
         fctx.namespace = state.user_data
+        for probe in collect_typealias_probes(fn.return_type):
+            add_typealias_probe(self.hctx.typealias_probes, probe)
+        for param in fn.parameters:
+            for probe in collect_typealias_probes(param.type):
+                add_typealias_probe(self.hctx.typealias_probes, probe)
         self.hctx.functions.append(fctx)
 
     def on_method_impl(self, state: AWNonClassBlockState, method: Method) -> None:
@@ -1129,6 +1135,12 @@ class AutowrapVisitor:
             state.access != "public",
             overload_tracker,
         )
+
+        for probe in collect_typealias_probes(method.return_type):
+            add_typealias_probe(cctx.typealias_probes, probe)
+        for param in method.parameters:
+            for probe in collect_typealias_probes(param.type):
+                add_typealias_probe(cctx.typealias_probes, probe)
 
         # Update class-specific method attributes
         fctx.is_constructor = is_constructor
