@@ -13,6 +13,7 @@ from semiwrap.autowrap.typealias_probe import (
     render_typealias_probes,
 )
 from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
+from semiwrap.autowrap.render_cls_trampoline_hpp import render_cls_trampoline_hpp
 
 
 def probes_for(type_text: str) -> list[str]:
@@ -158,3 +159,12 @@ def test_render_wrapped_cpp_skips_templated_child_typealias_probes():
     out = render_wrapped_cpp(hctx)
 
     assert "semiwrap_typealias_probe_ChildTemplateProbe__add_typealias_to_yaml" not in out
+
+
+def test_render_trampoline_hpp_emits_class_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+    out = render_cls_trampoline_hpp(hctx, cls)
+    probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    assert probe in out
+    assert out.index(probe) < out.index("PyTrampoline_ProtectedUsing(CantResolve")

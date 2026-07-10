@@ -7,6 +7,7 @@ from .context import (
     TrampolineData,
 )
 from .mangle import trampoline_signature
+from .typealias_probe import render_typealias_probes
 
 from . import render_pybind11 as rpybind11
 
@@ -221,6 +222,9 @@ def _render_cls_trampoline(
 
         for typealias in cls.auto_typealias:
             r.writeln(f"{typealias};")
+
+        if cls.typealias_probes:
+            render_typealias_probes(r, cls.typealias_probes)
 
         if cls.constants:
             r.writeln()
