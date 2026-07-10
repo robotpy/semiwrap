@@ -121,6 +121,7 @@ def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():
     out = render_wrapped_cpp(hctx)
     probe = "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
     assert probe in out
+    assert out.index("using namespace u;") < out.index(probe)
     assert out.index(probe) < out.index("struct semiwrap_using_initializer")
     assert "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in out
     assert "= AlsoCantResolve;" in out
@@ -133,3 +134,12 @@ def test_render_wrapped_cpp_emits_class_typealias_probe_inside_initializer():
     assert probe in out
     assert out.index("struct semiwrap_using_initializer") < out.index(probe)
     assert out.index(probe) < out.index("py::class_<typename cr::inner::ProtectedUsing")
+
+
+def test_render_wrapped_cpp_deduplicates_class_typealias_probes_in_initializer_scope():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    fwd_decl = next(c for c in hctx.classes if c.cpp_name == "FwdDecl")
+    fwd_decl.typealias_probes.append("CantResolve")
+    out = render_wrapped_cpp(hctx)
+    probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    assert out.count(f"using {probe}") == 1

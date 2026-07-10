@@ -304,8 +304,21 @@ def enum_def(r: RenderBuffer, varname: str, enum: EnumContext):
 def cls_user_using(r: RenderBuffer, cls: ClassContext):
     for typealias in cls.user_typealias:
         r.writeln(f"{typealias};")
-    if cls.typealias_probes:
-        render_typealias_probes(r, cls.typealias_probes)
+
+
+def _collect_class_typealias_probes(cls: ClassContext, probes: T.Set[str]) -> None:
+    probes.update(cls.typealias_probes)
+    for ccls in cls.child_classes:
+        _collect_class_typealias_probes(ccls, probes)
+
+
+def cls_typealias_probes(r: RenderBuffer, classes: T.Iterable[ClassContext]) -> None:
+    probes: T.Set[str] = set()
+    for cls in classes:
+        if not cls.template:
+            _collect_class_typealias_probes(cls, probes)
+    if probes:
+        render_typealias_probes(r, sorted(probes))
 
 
 def cls_auto_using(r: RenderBuffer, cls: ClassContext):

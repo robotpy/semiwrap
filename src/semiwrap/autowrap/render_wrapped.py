@@ -29,10 +29,6 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
         for typealias in hctx.user_typealias:
             r.writeln(f"{typealias};")
 
-    if hctx.typealias_probes:
-        r.writeln()
-        render_typealias_probes(r, hctx.typealias_probes)
-
     #
     # Ordering of the initialization function
     #
@@ -57,6 +53,10 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
         for ns in hctx.namespaces:
             r.writeln(f"using namespace {ns};")
 
+    if hctx.typealias_probes:
+        r.writeln()
+        render_typealias_probes(r, hctx.typealias_probes)
+
     r.writeln(f"\nstruct semiwrap_{hctx.hname}_initializer {{\n")
 
     with r.indent():
@@ -64,6 +64,8 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
             if not cls.template:
                 rpybind11.cls_user_using(r, cls)
                 rpybind11.cls_consts(r, cls)
+
+        rpybind11.cls_typealias_probes(r, hctx.classes)
 
         if hctx.subpackages:
             r.writeln()
