@@ -196,6 +196,31 @@ def test_using_fwddecl():
     assert u.getX(f) == 43
 
 
+def test_using_generated_typealias_probes_present():
+    from pathlib import Path
+
+    root = Path(__file__).parent / "cpp" / "sw-test" / "build"
+    using_cpp_files = sorted(root.glob("*/semiwrap/using.cpp"))
+    assert using_cpp_files, "sw-test build did not generate semiwrap/using.cpp"
+    using_cpp = using_cpp_files[-1].read_text()
+
+    assert "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in using_cpp
+    assert "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in using_cpp
+    assert "= AlsoCantResolve;" in using_cpp
+    assert "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml" in using_cpp
+    assert "= CantResolve;" in using_cpp
+
+    trampoline_files = sorted(
+        root.glob("*/semiwrap/trampolines/cr__inner__ProtectedUsing.hpp")
+    )
+    assert trampoline_files, (
+        "sw-test build did not generate trampoline for cr::inner::ProtectedUsing"
+    )
+    trampoline_hpp = trampoline_files[-1].read_text()
+    assert "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml" in trampoline_hpp
+    assert "add a typealias entry for `CantResolve`" in trampoline_hpp
+
+
 #
 # virtual_xform.h
 #
