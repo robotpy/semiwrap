@@ -12,6 +12,7 @@ from semiwrap.autowrap.typealias_probe import (
     probe_alias_name,
     render_typealias_probes,
 )
+from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
 
 
 def probes_for(type_text: str) -> list[str]:
@@ -94,7 +95,7 @@ def parse_fixture_header(header_name: str, yaml_name: str):
     yml = pathlib.Path("tests/cpp/sw-test/semiwrap/ft") / yaml_name
     cfg = AutowrapConfigYaml.from_file(yml)
     return parse_header(
-        header_name,
+        pathlib.Path(header_name).stem,
         root / header_name,
         root,
         GeneratorData(cfg, yml),
@@ -113,3 +114,22 @@ def test_parse_header_collects_class_constructor_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
     assert "CantResolve" in cls.typealias_probes
+
+
+def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    out = render_wrapped_cpp(hctx)
+    probe = "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
+    assert probe in out
+    assert out.index(probe) < out.index("struct semiwrap_using_initializer")
+    assert "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in out
+    assert "= AlsoCantResolve;" in out
+
+
+def test_render_wrapped_cpp_emits_class_typealias_probe_inside_initializer():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    out = render_wrapped_cpp(hctx)
+    probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    assert probe in out
+    assert out.index("struct semiwrap_using_initializer") < out.index(probe)
+    assert out.index(probe) < out.index("py::class_<typename cr::inner::ProtectedUsing")

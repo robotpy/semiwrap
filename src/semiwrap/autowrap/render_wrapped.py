@@ -3,6 +3,7 @@ from .context import HeaderContext
 
 from . import render_pybind11 as rpybind11
 from .render_cls_prologue import render_class_prologue
+from .typealias_probe import render_typealias_probes
 
 
 def render_wrapped_cpp(hctx: HeaderContext) -> str:
@@ -27,6 +28,10 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
         r.writeln()
         for typealias in hctx.user_typealias:
             r.writeln(f"{typealias};")
+
+    if hctx.typealias_probes:
+        r.writeln()
+        render_typealias_probes(r, hctx.typealias_probes)
 
     #
     # Ordering of the initialization function

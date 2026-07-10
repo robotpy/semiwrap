@@ -10,6 +10,7 @@ from .context import (
     GeneratedLambda,
     PropContext,
 )
+from .typealias_probe import render_typealias_probes
 
 
 def mkdoc(pre: str, doc: Documentation, post: str) -> str:
@@ -303,6 +304,8 @@ def enum_def(r: RenderBuffer, varname: str, enum: EnumContext):
 def cls_user_using(r: RenderBuffer, cls: ClassContext):
     for typealias in cls.user_typealias:
         r.writeln(f"{typealias};")
+    if cls.typealias_probes:
+        render_typealias_probes(r, cls.typealias_probes)
 
 
 def cls_auto_using(r: RenderBuffer, cls: ClassContext):
