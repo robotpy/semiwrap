@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pathlib
 import typing as T
 
 from cxxheaderparser.types import (
@@ -162,15 +163,27 @@ def probe_alias_name(target: str) -> str:
 
 
 def render_typealias_probes(
-    r: RenderBuffer, probes: T.Sequence[str], *, indent: str = ""
+    r: RenderBuffer,
+    probes: T.Sequence[str],
+    *,
+    indent: str = "",
+    yaml_path: str | pathlib.Path | None = None,
 ) -> None:
+    if yaml_path is not None:
+        yaml_target = pathlib.Path(yaml_path).resolve()
+    else:
+        yaml_target = None
+
     for target in sorted(set(probes)):
         alias = probe_alias_name(target)
         r.writeln(
             f"{indent}// semiwrap diagnostic: if this line fails because `{target}` "
             "is unknown,"
         )
-        r.writeln(
-            f"{indent}// add a typealias entry for `{target}` to the semiwrap yaml file."
-        )
+        if yaml_target is None:
+            r.writeln(
+                f"{indent}// add a typealias entry for `{target}` to the semiwrap yaml file."
+            )
+        else:
+            r.writeln(f"{indent}// add a typealias entry for `{target}` to {yaml_target}.")
         r.writeln(f"{indent}using {alias} [[maybe_unused]] = {target};")

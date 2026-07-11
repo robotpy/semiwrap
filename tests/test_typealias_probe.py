@@ -69,6 +69,15 @@ def test_render_typealias_probes_emits_comment_and_sorted_using_lines():
     ) in out
 
 
+def test_render_typealias_probes_mentions_specific_yaml_when_provided():
+    r = RenderBuffer()
+    yml = Path("/tmp/project/semiwrap/using.yml")
+    render_typealias_probes(r, ["CantResolve"], yaml_path=yml)
+    out = r.getvalue()
+    assert "add a typealias entry for `CantResolve` to /tmp/project/semiwrap/using.yml." in out
+    assert "to the semiwrap yaml file" not in out
+
+
 def test_render_typealias_probes_deduplicates_duplicate_input():
     r = RenderBuffer()
     render_typealias_probes(r, ["CantResolve", "CantResolve"])
@@ -417,6 +426,7 @@ def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():
     assert out.index(probe) < out.index("struct semiwrap_using_initializer")
     assert "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in out
     assert "= AlsoCantResolve;" in out
+    assert f"add a typealias entry for `AlsoCantResolve` to {hctx.orig_yaml}." in out
 
 
 def test_render_wrapped_cpp_emits_class_typealias_probe_inside_initializer():
@@ -426,6 +436,7 @@ def test_render_wrapped_cpp_emits_class_typealias_probe_inside_initializer():
     assert probe in out
     assert out.index("struct semiwrap_using_initializer") < out.index(probe)
     assert out.index(probe) < out.index("py::class_<typename cr::inner::ProtectedUsing")
+    assert f"add a typealias entry for `CantResolve` to {hctx.orig_yaml}." in out
 
 
 def test_render_wrapped_cpp_deduplicates_class_typealias_probes_in_initializer_scope():
@@ -458,3 +469,5 @@ def test_render_trampoline_hpp_emits_class_typealias_probe():
     probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
     assert probe in out
     assert out.index(probe) < out.index("PyTrampoline_ProtectedUsing(CantResolve")
+    assert "add a typealias entry for `CantResolve` to the semiwrap yaml file." in out
+    assert str(hctx.orig_yaml) not in out

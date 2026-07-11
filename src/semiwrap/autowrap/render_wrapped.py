@@ -55,7 +55,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
 
     if hctx.typealias_probes:
         r.writeln()
-        render_typealias_probes(r, hctx.typealias_probes)
+        render_typealias_probes(r, hctx.typealias_probes, yaml_path=hctx.orig_yaml)
 
     r.writeln(f"\nstruct semiwrap_{hctx.hname}_initializer {{\n")
 
@@ -65,7 +65,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 rpybind11.cls_user_using(r, cls)
                 rpybind11.cls_consts(r, cls)
 
-        rpybind11.cls_typealias_probes(r, hctx.classes)
+        rpybind11.cls_typealias_probes(r, hctx.classes, yaml_path=hctx.orig_yaml)
 
         if hctx.subpackages:
             r.writeln()

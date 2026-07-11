@@ -1,4 +1,5 @@
 import inspect
+import pathlib
 import typing as T
 
 from .buffer import RenderBuffer
@@ -313,13 +314,18 @@ def _collect_class_typealias_probes(cls: ClassContext, probes: T.Set[str]) -> No
             _collect_class_typealias_probes(ccls, probes)
 
 
-def cls_typealias_probes(r: RenderBuffer, classes: T.Iterable[ClassContext]) -> None:
+def cls_typealias_probes(
+    r: RenderBuffer,
+    classes: T.Iterable[ClassContext],
+    *,
+    yaml_path: str | pathlib.Path | None = None,
+) -> None:
     probes: T.Set[str] = set()
     for cls in classes:
         if not cls.template:
             _collect_class_typealias_probes(cls, probes)
     if probes:
-        render_typealias_probes(r, sorted(probes))
+        render_typealias_probes(r, sorted(probes), yaml_path=yaml_path)
 
 
 def cls_auto_using(r: RenderBuffer, cls: ClassContext):
