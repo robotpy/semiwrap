@@ -318,7 +318,7 @@ def cls_typealias_probes(
     r: RenderBuffer,
     classes: T.Iterable[ClassContext],
     *,
-    yaml_path: str | pathlib.Path | None = None,
+    yaml_path: T.Optional[T.Union[str, pathlib.Path]] = None,
 ) -> None:
     probes: T.Set[str] = set()
     for cls in classes:
