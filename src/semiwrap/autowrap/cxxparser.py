@@ -409,7 +409,16 @@ class AutowrapVisitor:
     def _probe_uses_suppressed_template_alias(
         self, probe: str, suppressed_aliases: typing.Set[str]
     ) -> bool:
-        return any(probe.startswith(f"{name}<") for name in suppressed_aliases)
+        return self._probe_references_suppressed_name(probe, suppressed_aliases)
+
+    def _template_typealias_names(self, typealiases: typing.List[str]) -> typing.Set[str]:
+        names: typing.Set[str] = set()
+        for typealias in typealiases:
+            if typealias.startswith("template"):
+                m = re.search(r"\busing\s+([A-Za-z_]\w*)\b", typealias)
+                if m:
+                    names.add(m.group(1))
+        return names
 
     def _template_type_param_names(
         self,
@@ -505,20 +514,6 @@ class AutowrapVisitor:
             fn, data, fn_name, scope_var, False, overload_tracker
         )
         fctx.namespace = state.user_data
-        suppressed_names = self._template_type_param_names(fn.template)
-        self._add_typealias_probes(
-            self.hctx.typealias_probes,
-            fn.return_type,
-            suppressed_names,
-            suppressed_names,
-        )
-        for param in fn.parameters:
-            self._add_typealias_probes(
-                self.hctx.typealias_probes,
-                param.type,
-                suppressed_names,
-                suppressed_names,
-            )
         self.hctx.functions.append(fctx)
 
     def on_method_impl(self, state: AWNonClassBlockState, method: Method) -> None:
@@ -1213,18 +1208,27 @@ class AutowrapVisitor:
             overload_tracker,
         )
 
+        needs_trampoline_signature_probe = (
+            is_virtual and not state.class_decl.final and not cdata.data.force_no_trampoline
+        )
         if (
             is_constructor
             or state.access != "public"
-            or is_virtual
+            or needs_trampoline_signature_probe
             or fctx.is_overloaded
             or fctx.genlambda
         ):
             suppressed_names = set(cdata.local_typealias_names)
             method_template_names = self._template_type_param_names(method.template)
             suppressed_names.update(method_template_names)
+            class_template_names = {
+                param.split()[-1] for param in cdata.data.template_params or []
+            }
             suppressed_template_aliases = set(cdata.local_typealias_names)
-            suppressed_template_aliases.update(cdata.typealias_names)
+            suppressed_template_aliases.difference_update(class_template_names)
+            suppressed_template_aliases.update(
+                self._template_typealias_names(cdata.data.typealias)
+            )
             self._add_typealias_probes(
                 cctx.typealias_probes,
                 method.return_type,
@@ -2306,6 +2310,26 @@ def parse_header(
         for param in tmpl_data.params:
             if isinstance(param, str):
                 visitor._add_user_type_caster(param)
+
+    # Global function typealias probes. Do this after parsing so overload
+    # trackers have seen every overload.
+    for fctx in hctx.functions:
+        if fctx.is_overloaded or fctx.genlambda:
+            fn = fctx._fn
+            suppressed_names = visitor._template_type_param_names(fn.template)
+            visitor._add_typealias_probes(
+                hctx.typealias_probes,
+                fn.return_type,
+                suppressed_names,
+                suppressed_names,
+            )
+            for param in fn.parameters:
+                visitor._add_typealias_probes(
+                    hctx.typealias_probes,
+                    param.type,
+                    suppressed_names,
+                    suppressed_names,
+                )
 
     # Type caster
     visitor._set_type_caster_includes()

@@ -154,6 +154,32 @@ def test_parse_header_collects_global_function_typealias_probe():
     assert "AlsoCantResolve" in hctx.typealias_probes
 
 
+def test_parse_header_skips_non_overloaded_global_direct_function_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "global_direct_function",
+        """
+#pragma once
+
+namespace parent {
+struct ControlWord {};
+namespace child {
+void set_program_state(const ControlWord& word);
+}
+}
+""",
+        """
+classes:
+  parent::ControlWord:
+    ignore: true
+functions:
+  set_program_state:
+""",
+    )
+
+    assert "ControlWord" not in hctx.typealias_probes
+
+
 def test_parse_header_collects_class_constructor_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
@@ -176,6 +202,43 @@ def test_parse_header_skips_local_user_alias_template_typealias_probes():
     hctx = parse_fixture_header("using2.h", "using2.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "Using3")
     assert "fancy_list<int>" not in cls.typealias_probes
+
+
+def test_parse_header_skips_targets_with_local_alias_template_arguments(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "nested_local_alias_arg",
+        """
+#pragma once
+
+namespace units {
+template <typename U> struct unit_t {};
+}
+
+struct NestedLocalAliasArg {
+    using Velocity = int;
+    using kv_unit = int;
+
+    NestedLocalAliasArg(units::unit_t<kv_unit> gain) {}
+    void calculate(units::unit_t<Velocity> velocity) {}
+};
+""",
+        """
+classes:
+  units::unit_t:
+    ignore: true
+  NestedLocalAliasArg:
+    methods:
+      NestedLocalAliasArg:
+      calculate:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "NestedLocalAliasArg")
+    assert "Velocity" not in cls.typealias_probes
+    assert "kv_unit" not in cls.typealias_probes
+    assert "units::unit_t<Velocity>" not in cls.typealias_probes
+    assert "units::unit_t<kv_unit>" not in cls.typealias_probes
 
 
 def test_parse_header_suppresses_class_template_parameter_probe():
@@ -289,6 +352,37 @@ classes:
     cls = next(c for c in hctx.classes if c.cpp_name == "MethodTemplateProbe")
     assert "T" not in cls.typealias_probes
     assert "Alias<T>" not in cls.typealias_probes
+
+
+def test_parse_header_skips_force_no_trampoline_virtual_method_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "force_no_trampoline_virtual",
+        """
+#pragma once
+
+struct ForceNoTrampolineBase {
+    struct ControlVector {};
+    virtual const ControlVector& get() const = 0;
+};
+
+struct ForceNoTrampolineDerived : ForceNoTrampolineBase {
+    const ControlVector& get() const override;
+};
+""",
+        """
+classes:
+  ForceNoTrampolineBase:
+    ignore: true
+  ForceNoTrampolineDerived:
+    force_no_trampoline: true
+    methods:
+      get:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "ForceNoTrampolineDerived")
+    assert "ControlVector" not in cls.typealias_probes
 
 
 def test_parse_header_collects_public_generated_lambda_method_probe(tmp_path):
