@@ -185,5 +185,7 @@ def render_typealias_probes(
                 f"{indent}// add a typealias entry for `{target}` to the semiwrap yaml file."
             )
         else:
-            r.writeln(f"{indent}// add a typealias entry for `{target}` to {yaml_target}.")
+            r.writeln(
+                f"{indent}// add a typealias entry for `{target}` to {yaml_target}."
+            )
         r.writeln(f"{indent}using {alias} [[maybe_unused]] = {target};")

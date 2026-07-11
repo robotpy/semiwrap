@@ -372,7 +372,9 @@ class AutowrapVisitor:
         )
         self.types = set()
         self.user_types = set()
-        self._extract_typealias(self.user_cfg.typealias, self.hctx.user_typealias, set())
+        self._extract_typealias(
+            self.user_cfg.typealias, self.hctx.user_typealias, set()
+        )
 
     def _add_typealias_probes(
         self,
@@ -411,7 +413,9 @@ class AutowrapVisitor:
     ) -> bool:
         return self._probe_references_suppressed_name(probe, suppressed_aliases)
 
-    def _template_typealias_names(self, typealiases: typing.List[str]) -> typing.Set[str]:
+    def _template_typealias_names(
+        self, typealiases: typing.List[str]
+    ) -> typing.Set[str]:
         names: typing.Set[str] = set()
         for typealias in typealiases:
             if typealias.startswith("template"):
@@ -1209,7 +1213,9 @@ class AutowrapVisitor:
         )
 
         needs_trampoline_signature_probe = (
-            is_virtual and not state.class_decl.final and not cdata.data.force_no_trampoline
+            is_virtual
+            and not state.class_decl.final
+            and not cdata.data.force_no_trampoline
         )
         if (
             is_constructor

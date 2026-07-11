@@ -204,8 +204,13 @@ def test_using_generated_typealias_probes_present():
     assert using_cpp_files, "sw-test build did not generate semiwrap/using.cpp"
     using_cpp = using_cpp_files[-1].read_text()
 
-    assert "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in using_cpp
-    assert "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in using_cpp
+    assert (
+        "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in using_cpp
+    )
+    assert (
+        "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
+        in using_cpp
+    )
     assert "= AlsoCantResolve;" in using_cpp
     assert "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml" in using_cpp
     assert "= CantResolve;" in using_cpp
@@ -213,11 +218,13 @@ def test_using_generated_typealias_probes_present():
     trampoline_files = sorted(
         root.glob("*/semiwrap/trampolines/cr__inner__ProtectedUsing.hpp")
     )
-    assert trampoline_files, (
-        "sw-test build did not generate trampoline for cr::inner::ProtectedUsing"
-    )
+    assert (
+        trampoline_files
+    ), "sw-test build did not generate trampoline for cr::inner::ProtectedUsing"
     trampoline_hpp = trampoline_files[-1].read_text()
-    assert "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml" in trampoline_hpp
+    assert (
+        "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml" in trampoline_hpp
+    )
     assert "add a typealias entry for `CantResolve`" in trampoline_hpp
 
 

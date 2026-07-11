@@ -74,7 +74,10 @@ def test_render_typealias_probes_mentions_specific_yaml_when_provided():
     yml = Path("/tmp/project/semiwrap/using.yml")
     render_typealias_probes(r, ["CantResolve"], yaml_path=yml)
     out = r.getvalue()
-    assert "add a typealias entry for `CantResolve` to /tmp/project/semiwrap/using.yml." in out
+    assert (
+        "add a typealias entry for `CantResolve` to /tmp/project/semiwrap/using.yml."
+        in out
+    )
     assert "to the semiwrap yaml file" not in out
 
 
@@ -82,9 +85,10 @@ def test_render_typealias_probes_deduplicates_duplicate_input():
     r = RenderBuffer()
     render_typealias_probes(r, ["CantResolve", "CantResolve"])
     out = r.getvalue()
-    assert out.count(
-        "using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
-    ) == 1
+    assert (
+        out.count("using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml")
+        == 1
+    )
 
 
 def test_probe_alias_name_distinguishes_namespaces_from_templates():
@@ -424,7 +428,9 @@ def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():
     assert probe in out
     assert out.index("using namespace u;") < out.index(probe)
     assert out.index(probe) < out.index("struct semiwrap_using_initializer")
-    assert "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in out
+    assert (
+        "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in out
+    )
     assert "= AlsoCantResolve;" in out
     assert f"add a typealias entry for `AlsoCantResolve` to {hctx.orig_yaml}." in out
 
@@ -459,7 +465,9 @@ def test_render_wrapped_cpp_skips_templated_child_typealias_probes():
 
     out = render_wrapped_cpp(hctx)
 
-    assert "semiwrap_typealias_probe_ChildTemplateProbe__add_typealias_to_yaml" not in out
+    assert (
+        "semiwrap_typealias_probe_ChildTemplateProbe__add_typealias_to_yaml" not in out
+    )
 
 
 def test_render_trampoline_hpp_emits_class_typealias_probe():
