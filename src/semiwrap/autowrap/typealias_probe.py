@@ -175,6 +175,7 @@ def render_typealias_probes(
 
     for target in sorted(set(probes)):
         alias = probe_alias_name(target)
+        r.writeln()
         r.writeln(
             f"// semiwrap diagnostic: if this line fails because `{target}` "
             "is unknown,"

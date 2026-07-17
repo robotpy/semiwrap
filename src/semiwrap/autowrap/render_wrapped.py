@@ -54,7 +54,6 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
             r.writeln(f"using namespace {ns};")
 
     if hctx.typealias_probes:
-        r.writeln()
         render_typealias_probes(r, hctx.typealias_probes, yaml_path=hctx.orig_yaml)
 
     r.writeln(f"\nstruct semiwrap_{hctx.hname}_initializer {{\n")
