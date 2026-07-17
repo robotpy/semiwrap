@@ -2,18 +2,27 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from cxxheaderparser.options import ParserOptions
 from cxxheaderparser.simple import parse_typename
 
 from semiwrap.autowrap import typealias_probe
 from semiwrap.autowrap.buffer import RenderBuffer
+from semiwrap.autowrap.context import ClassTemplateData
+from semiwrap.autowrap.cxxparser import parse_header
+from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.autowrap.render_cls_trampoline_hpp import render_cls_trampoline_hpp
+from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
 from semiwrap.autowrap.typealias_probe import (
     add_typealias_probe,
     collect_typealias_probes,
     probe_alias_name,
     render_typealias_probes,
 )
-from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
-from semiwrap.autowrap.render_cls_trampoline_hpp import render_cls_trampoline_hpp
+from semiwrap.config.autowrap_yml import AutowrapConfigYaml
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_INCLUDE_ROOT = PROJECT_ROOT / "tests/cpp/sw-test/src/swtest/ft/include"
+FIXTURE_YAML_ROOT = PROJECT_ROOT / "tests/cpp/sw-test/semiwrap/ft"
 
 
 def probes_for(type_text: str) -> list[str]:
@@ -69,15 +78,18 @@ def test_render_typealias_probes_emits_comment_and_sorted_using_lines():
     ) in out
 
 
-def test_render_typealias_probes_mentions_specific_yaml_when_provided():
+def test_render_typealias_probes_mentions_provided_yaml_path(tmp_path: Path):
+    real_dir = tmp_path / "real"
+    link_dir = tmp_path / "link"
+    real_dir.mkdir()
+    link_dir.symlink_to(real_dir, target_is_directory=True)
+
     r = RenderBuffer()
-    yml = Path("/tmp/project/semiwrap/using.yml")
+    yml = link_dir / "using.yml"
     render_typealias_probes(r, ["CantResolve"], yaml_path=yml)
+
     out = r.getvalue()
-    assert (
-        "add a typealias entry for `CantResolve` to /tmp/project/semiwrap/using.yml."
-        in out
-    )
+    assert f"add a typealias entry for `CantResolve` to {yml}." in out
     assert "to the semiwrap yaml file" not in out
 
 
@@ -104,26 +116,13 @@ def test_helper_uses_deferred_annotations_for_python_38_runtime_compatibility():
     assert source.startswith("from __future__ import annotations\n")
 
 
-import pathlib
-
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
-
-from cxxheaderparser.options import ParserOptions
-
-from semiwrap.autowrap.cxxparser import parse_header
-from semiwrap.autowrap.generator_data import GeneratorData
-from semiwrap.autowrap.context import ClassTemplateData
-from semiwrap.config.autowrap_yml import AutowrapConfigYaml
-
-
 def parse_fixture_header(header_name: str, yaml_name: str):
-    root = PROJECT_ROOT / "tests/cpp/sw-test/src/swtest/ft/include"
-    yml = PROJECT_ROOT / "tests/cpp/sw-test/semiwrap/ft" / yaml_name
+    yml = FIXTURE_YAML_ROOT / yaml_name
     cfg = AutowrapConfigYaml.from_file(yml)
     return parse_header(
-        pathlib.Path(header_name).stem,
-        root / header_name,
-        root,
+        Path(header_name).stem,
+        FIXTURE_INCLUDE_ROOT / header_name,
+        FIXTURE_INCLUDE_ROOT,
         GeneratorData(cfg, yml),
         ParserOptions(),
         {},
@@ -131,13 +130,12 @@ def parse_fixture_header(header_name: str, yaml_name: str):
     )
 
 
-def parse_fixture_header_with_yaml(header_name: str, yml: pathlib.Path):
-    root = PROJECT_ROOT / "tests/cpp/sw-test/src/swtest/ft/include"
+def parse_fixture_header_with_yaml(header_name: str, yml: Path):
     cfg = AutowrapConfigYaml.from_file(yml)
     return parse_header(
-        pathlib.Path(header_name).stem,
-        root / header_name,
-        root,
+        Path(header_name).stem,
+        FIXTURE_INCLUDE_ROOT / header_name,
+        FIXTURE_INCLUDE_ROOT,
         GeneratorData(cfg, yml),
         ParserOptions(),
         {},
@@ -145,11 +143,11 @@ def parse_fixture_header_with_yaml(header_name: str, yml: pathlib.Path):
     )
 
 
-def parse_tmp_header(tmp_path: pathlib.Path, name: str, header: str, yaml: str):
+def parse_tmp_header(tmp_path: Path, name: str, header: str, yaml_text: str):
     header_path = tmp_path / f"{name}.h"
     yaml_path = tmp_path / f"{name}.yml"
     header_path.write_text(header)
-    yaml_path.write_text(yaml)
+    yaml_path.write_text(yaml_text)
     cfg = AutowrapConfigYaml.from_file(yaml_path)
     return parse_header(
         name,

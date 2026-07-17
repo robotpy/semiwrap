@@ -170,7 +170,7 @@ def render_typealias_probes(
     yaml_path: str | pathlib.Path | None = None,
 ) -> None:
     if yaml_path is not None:
-        yaml_target = pathlib.Path(yaml_path).resolve()
+        yaml_target = pathlib.Path(yaml_path)
     else:
         yaml_target = None
 
