@@ -10,6 +10,14 @@ classes:
         overloads:
           "":
           CantResolve:
+  cr::inner::VirtualReturnProbe:
+    methods:
+      setPosition:
+  cr::inner::ConfiguredAliasReturnProbe:
+    typealias:
+    - cr::ConfiguredAliasReturn
+    methods:
+      getError:
   u::FwdDecl:
     attributes:
       x:
@@ -18,3 +26,4 @@ functions:
     overloads:
       AlsoCantResolve:
       std::string:
+  fn_lambda_return_probe:

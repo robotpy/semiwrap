@@ -1,4 +1,5 @@
 import inspect
+import pathlib
 import typing as T
 
 from .buffer import RenderBuffer
@@ -10,6 +11,7 @@ from .context import (
     GeneratedLambda,
     PropContext,
 )
+from .typealias_probe import render_typealias_probes
 
 
 def mkdoc(pre: str, doc: Documentation, post: str) -> str:
@@ -303,6 +305,27 @@ def enum_def(r: RenderBuffer, varname: str, enum: EnumContext):
 def cls_user_using(r: RenderBuffer, cls: ClassContext):
     for typealias in cls.user_typealias:
         r.writeln(f"{typealias};")
+
+
+def _collect_class_typealias_probes(cls: ClassContext, probes: T.Set[str]) -> None:
+    probes.update(cls.wrapped_typealias_probes)
+    for ccls in cls.child_classes:
+        if not ccls.template:
+            _collect_class_typealias_probes(ccls, probes)
+
+
+def cls_typealias_probes(
+    r: RenderBuffer,
+    classes: T.Iterable[ClassContext],
+    *,
+    yaml_path: T.Optional[T.Union[str, pathlib.Path]] = None,
+) -> None:
+    probes: T.Set[str] = set()
+    for cls in classes:
+        if not cls.template:
+            _collect_class_typealias_probes(cls, probes)
+    if probes:
+        render_typealias_probes(r, sorted(probes), yaml_path=yaml_path)
 
 
 def cls_auto_using(r: RenderBuffer, cls: ClassContext):

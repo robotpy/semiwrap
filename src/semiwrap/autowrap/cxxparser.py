@@ -51,7 +51,9 @@ from cxxheaderparser.types import (
     PQName,
     PQNameSegment,
     Reference,
+    TemplateDecl,
     TemplateInst,
+    TemplateNonTypeParam,
     TemplateTypeParam,
     Type,
     Typedef,
@@ -91,6 +93,7 @@ from .context import (
     TemplateInstanceContext,
     TrampolineData,
 )
+from .typealias_probe import add_typealias_probe, collect_typealias_probes
 
 from ..name_transform import NameTransforms, resolve_name_transforms
 from ..util import relpath_walk_up
@@ -297,6 +300,7 @@ class ClassStateData(typing.NamedTuple):
     data: ClassData
 
     typealias_names: typing.Set[str]
+    local_typealias_names: typing.Set[str]
 
     # have to defer processing these
     defer_protected_methods: typing.List[Method]
@@ -368,6 +372,75 @@ class AutowrapVisitor:
         )
         self.types = set()
         self.user_types = set()
+        self.user_typealias_names: typing.Set[str] = set()
+        self._extract_typealias(
+            self.user_cfg.typealias, self.hctx.user_typealias, self.user_typealias_names
+        )
+
+    def _add_typealias_probes(
+        self,
+        probes: typing.List[str],
+        dtype: typing.Optional[typing.Union[DecoratedType, FunctionType]],
+        suppressed_names: typing.Set[str],
+        dependent_suppressed_names: typing.Optional[typing.Set[str]] = None,
+        suppressed_template_aliases: typing.Optional[typing.Set[str]] = None,
+    ) -> None:
+        dependent_suppressed_names = dependent_suppressed_names or set()
+        suppressed_template_aliases = suppressed_template_aliases or set()
+        for probe in collect_typealias_probes(dtype):
+            if probe in suppressed_names:
+                continue
+            if self._probe_references_suppressed_name(
+                probe, dependent_suppressed_names
+            ):
+                continue
+            if self._probe_uses_suppressed_template_alias(
+                probe, suppressed_template_aliases
+            ):
+                continue
+            add_typealias_probe(probes, probe)
+
+    def _probe_references_suppressed_name(
+        self, probe: str, suppressed_names: typing.Set[str]
+    ) -> bool:
+        for name in suppressed_names:
+            pattern = rf"(?<![0-9A-Za-z_]){re.escape(name)}(?![0-9A-Za-z_])"
+            if re.search(pattern, probe):
+                return True
+        return False
+
+    def _probe_uses_suppressed_template_alias(
+        self, probe: str, suppressed_aliases: typing.Set[str]
+    ) -> bool:
+        return self._probe_references_suppressed_name(probe, suppressed_aliases)
+
+    def _template_typealias_names(
+        self, typealiases: typing.List[str]
+    ) -> typing.Set[str]:
+        names: typing.Set[str] = set()
+        for typealias in typealiases:
+            if typealias.startswith("template"):
+                m = re.search(r"\busing\s+([A-Za-z_]\w*)\b", typealias)
+                if m:
+                    names.add(m.group(1))
+        return names
+
+    def _template_type_param_names(
+        self,
+        template: typing.Optional[
+            typing.Union[TemplateDecl, typing.List[TemplateDecl]]
+        ],
+    ) -> typing.Set[str]:
+        if template is None:
+            return set()
+        if isinstance(template, list):
+            template = template[-1]
+        return {
+            param.name
+            for param in template.params
+            if isinstance(param, (TemplateTypeParam, TemplateNonTypeParam))
+            and param.name
+        }
 
     #
     # Visitor interface
@@ -476,6 +549,7 @@ class AutowrapVisitor:
             ctx.auto_typealias.append(
                 f"using {using.alias} [[maybe_unused]] = typename {ctx.full_cpp_name}::{using.alias}"
             )
+            state.user_data.local_typealias_names.add(using.alias)
 
     def on_using_declaration(self, state: AWState, using: UsingDecl) -> None:
         self._add_type_caster_pqname(using.typename)
@@ -602,6 +676,8 @@ class AutowrapVisitor:
                 inline_code=enum_data.inline_code,
             )
         )
+        if ename and isinstance(user_data, ClassStateData):
+            user_data.local_typealias_names.add(ename)
 
     #
     # Class/union/struct
@@ -787,8 +863,14 @@ class AutowrapVisitor:
         # Add to parent class or global class list
         if parent_ctx:
             parent_ctx.child_classes.append(ctx)
+            if isinstance(state.parent.user_data, ClassStateData):
+                state.parent.user_data.local_typealias_names.add(cls_name)
         else:
             self.hctx.classes.append(ctx)
+
+        local_typealias_names = {cls_name}
+        for param in class_data.template_params or []:
+            local_typealias_names.add(param.split()[-1])
 
         # Store for other events to use
         state.user_data = ClassStateData(
@@ -796,6 +878,7 @@ class AutowrapVisitor:
             cls_key=cls_key,
             data=class_data,
             typealias_names=typealias_names,
+            local_typealias_names=local_typealias_names,
             # Method data
             defer_protected_methods=[],
             defer_private_nonvirtual_methods=[],
@@ -1130,6 +1213,104 @@ class AutowrapVisitor:
             overload_tracker,
         )
 
+        needs_trampoline_method_probe = (
+            is_virtual
+            and not state.class_decl.final
+            and not cdata.data.force_no_trampoline
+            and not fctx.has_buffers
+        )
+        needs_trampoline_constructor_probe = (
+            is_constructor and state.access == "protected"
+        )
+        # If the method has cpp_code defined, it must either match the function
+        # signature of the method, or virtual_xform must be defined with an
+        # appropriate conversion. If neither of these are true, it will lead
+        # to difficult to diagnose errors at runtime. We add a static assert
+        # to try and catch these errors at compile time
+        need_vcheck = (
+            is_virtual
+            and method_data.cpp_code
+            and not method_data.virtual_xform
+            and not method_data.trampoline_cpp_code
+            and not state.class_decl.final
+            and not cdata.data.force_no_trampoline
+        )
+        wrapped_uses_signature = not fctx.ignore_py and (
+            (fctx.is_overloaded and not fctx.genlambda and not fctx.cpp_code)
+            or (
+                state.access == "protected"
+                and not is_constructor
+                and not fctx.genlambda
+                and not fctx.cpp_code
+            )
+        )
+        wrapped_uses_params = (
+            need_vcheck
+            or wrapped_uses_signature
+            or (
+                not fctx.ignore_py
+                and ((is_constructor and not fctx.cpp_code) or bool(fctx.genlambda))
+            )
+        )
+        needs_any_typealias_probe = (
+            needs_trampoline_method_probe
+            or needs_trampoline_constructor_probe
+            or wrapped_uses_signature
+            or wrapped_uses_params
+        )
+        if needs_any_typealias_probe:
+            suppressed_names = set(cdata.local_typealias_names)
+            suppressed_names.update(cdata.typealias_names)
+            method_template_names = self._template_type_param_names(method.template)
+            suppressed_names.update(method_template_names)
+            class_template_names = {
+                param.split()[-1] for param in cdata.data.template_params or []
+            }
+            suppressed_template_aliases = set(cdata.local_typealias_names)
+            suppressed_template_aliases.update(cdata.typealias_names)
+            suppressed_template_aliases.difference_update(class_template_names)
+            suppressed_template_aliases.update(
+                self._template_typealias_names(cdata.data.typealias)
+            )
+
+            def add_probes(
+                probes: typing.List[str],
+                *,
+                include_return_type: bool,
+                include_parameter_types: bool,
+            ) -> None:
+                if include_return_type:
+                    self._add_typealias_probes(
+                        probes,
+                        method.return_type,
+                        suppressed_names,
+                        method_template_names,
+                        suppressed_template_aliases,
+                    )
+                if include_parameter_types:
+                    for param in method.parameters:
+                        self._add_typealias_probes(
+                            probes,
+                            param.type,
+                            suppressed_names,
+                            method_template_names,
+                            suppressed_template_aliases,
+                        )
+
+            add_probes(
+                cctx.typealias_probes,
+                include_return_type=needs_trampoline_method_probe,
+                include_parameter_types=(
+                    needs_trampoline_method_probe or needs_trampoline_constructor_probe
+                ),
+            )
+
+            add_probes(
+                cctx.wrapped_typealias_probes,
+                include_return_type=(wrapped_uses_signature or need_vcheck),
+                include_parameter_types=wrapped_uses_params,
+            )
+
         # Update class-specific method attributes
         fctx.is_constructor = is_constructor
         if is_constructor and method_data.rename and not method_data.cpp_code:
@@ -1195,19 +1376,6 @@ class AutowrapVisitor:
                     elif not is_virtual:
                         cdata.non_virtual_protected_methods.append(fctx)
 
-        # If the method has cpp_code defined, it must either match the function
-        # signature of the method, or virtual_xform must be defined with an
-        # appropriate conversion. If neither of these are true, it will lead
-        # to difficult to diagnose errors at runtime. We add a static assert
-        # to try and catch these errors at compile time
-        need_vcheck = (
-            is_virtual
-            and method_data.cpp_code
-            and not method_data.virtual_xform
-            and not method_data.trampoline_cpp_code
-            and not state.class_decl.final
-            and not cdata.data.force_no_trampoline
-        )
         if need_vcheck:
             cctx.vcheck_fns.append(fctx)
             self.hctx.has_vcheck = True
@@ -1992,6 +2160,10 @@ class AutowrapVisitor:
         for typealias in in_ta:
             if typealias.startswith("template"):
                 out_ta.append(typealias)
+                using_pos = typealias.find(" using ")
+                if using_pos != -1:
+                    ta_name = typealias[using_pos + 7 :].split("=", 1)[0].strip()
+                    ta_names.add(ta_name.split("<", 1)[0].strip())
             else:
                 teq = typealias.find("=")
                 if teq != -1:
@@ -2192,8 +2364,32 @@ def parse_header(
             if isinstance(param, str):
                 visitor._add_user_type_caster(param)
 
-    # User typealias additions
-    visitor._extract_typealias(user_cfg.typealias, hctx.user_typealias, set())
+    # Global function typealias probes. Do this after parsing so overload
+    # trackers have seen every overload.
+    for fctx in hctx.functions:
+        if fctx.ignore_py:
+            continue
+        if fctx.is_overloaded or fctx.genlambda:
+            fn = fctx._fn
+            suppressed_names = visitor._template_type_param_names(fn.template)
+            suppressed_names.update(visitor.user_typealias_names)
+            if fctx.is_overloaded and not fctx.genlambda and not fctx.cpp_code:
+                visitor._add_typealias_probes(
+                    hctx.typealias_probes,
+                    fn.return_type,
+                    suppressed_names,
+                    suppressed_names,
+                )
+            if fctx.genlambda or (
+                fctx.is_overloaded and not fctx.genlambda and not fctx.cpp_code
+            ):
+                for param in fn.parameters:
+                    visitor._add_typealias_probes(
+                        hctx.typealias_probes,
+                        param.type,
+                        suppressed_names,
+                        suppressed_names,
+                    )
 
     # Type caster
     visitor._set_type_caster_includes()

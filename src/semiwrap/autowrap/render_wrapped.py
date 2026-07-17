@@ -3,6 +3,7 @@ from .context import HeaderContext
 
 from . import render_pybind11 as rpybind11
 from .render_cls_prologue import render_class_prologue
+from .typealias_probe import render_typealias_probes
 
 
 def render_wrapped_cpp(hctx: HeaderContext) -> str:
@@ -52,6 +53,9 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
         for ns in hctx.namespaces:
             r.writeln(f"using namespace {ns};")
 
+    if hctx.typealias_probes:
+        render_typealias_probes(r, hctx.typealias_probes, yaml_path=hctx.orig_yaml)
+
     r.writeln(f"\nstruct semiwrap_{hctx.hname}_initializer {{\n")
 
     with r.indent():
@@ -59,6 +63,8 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
             if not cls.template:
                 rpybind11.cls_user_using(r, cls)
                 rpybind11.cls_consts(r, cls)
+
+        rpybind11.cls_typealias_probes(r, hctx.classes, yaml_path=hctx.orig_yaml)
 
         if hctx.subpackages:
             r.writeln()

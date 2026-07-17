@@ -489,6 +489,15 @@ class ClassContext:
     #: Extra autodetected 'using' directives
     auto_typealias: typing.List[str] = field(default_factory=list)
 
+    #: Best-effort C++ type spellings that should be probed before generated
+    #: class/trampoline code uses them. These produce clearer compile-time
+    #: diagnostics when a YAML typealias entry is missing.
+    typealias_probes: typing.List[str] = field(default_factory=list)
+
+    #: Best-effort C++ type spellings that should be probed before generated
+    #: wrapped initializer code uses them.
+    wrapped_typealias_probes: typing.List[str] = field(default_factory=list)
+
     #: vcheck are various static asserts that check things about the
     #: inline functions
     vcheck_fns: typing.List[FunctionContext] = field(default_factory=list)
@@ -567,6 +576,10 @@ class HeaderContext:
 
     type_caster_includes: typing.List[str] = field(default_factory=list)
     user_typealias: typing.List[str] = field(default_factory=list)
+
+    #: Best-effort C++ type spellings that should be probed before generated
+    #: global binding code uses them.
+    typealias_probes: typing.List[str] = field(default_factory=list)
 
     using_ns: typing.List[str] = field(default_factory=list)
 

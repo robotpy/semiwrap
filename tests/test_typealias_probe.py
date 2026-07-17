@@ -1,0 +1,595 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from cxxheaderparser.options import ParserOptions
+from cxxheaderparser.simple import parse_typename
+
+from semiwrap.autowrap import typealias_probe
+from semiwrap.autowrap.buffer import RenderBuffer
+from semiwrap.autowrap.context import ClassTemplateData
+from semiwrap.autowrap.cxxparser import parse_header
+from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.autowrap.render_cls_trampoline_hpp import render_cls_trampoline_hpp
+from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
+from semiwrap.autowrap.typealias_probe import (
+    add_typealias_probe,
+    collect_typealias_probes,
+    probe_alias_name,
+    render_typealias_probes,
+)
+from semiwrap.config.autowrap_yml import AutowrapConfigYaml
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_INCLUDE_ROOT = PROJECT_ROOT / "tests/cpp/sw-test/src/swtest/ft/include"
+FIXTURE_YAML_ROOT = PROJECT_ROOT / "tests/cpp/sw-test/semiwrap/ft"
+
+
+def probes_for(type_text: str) -> list[str]:
+    return collect_typealias_probes(parse_typename(type_text))
+
+
+def test_collects_unqualified_alias_from_decorated_type():
+    assert probes_for("const CantResolve&") == ["CantResolve"]
+
+
+def test_collects_template_alias_and_inner_alias_sorted():
+    assert probes_for("fancy_list<CantResolve>") == [
+        "CantResolve",
+        "fancy_list<CantResolve>",
+    ]
+
+
+def test_skips_builtin_std_and_global_root_targets_but_collects_template_args():
+    assert probes_for("int") == []
+    assert probes_for("std::vector<CantResolve>") == ["CantResolve"]
+    assert probes_for("::AlreadyQualified") == []
+
+
+def test_add_typealias_probe_deduplicates_and_sorts():
+    probes: list[str] = []
+    add_typealias_probe(probes, "CantResolve")
+    add_typealias_probe(probes, "AlsoCantResolve")
+    add_typealias_probe(probes, "CantResolve")
+    assert probes == ["AlsoCantResolve", "CantResolve"]
+
+
+def test_probe_alias_name_is_deterministic_and_descriptive():
+    assert probe_alias_name("CantResolve") == (
+        "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    )
+    assert probe_alias_name("fancy_list<CantResolve>") == (
+        "semiwrap_typealias_probe_fancy_u_list_lt_CantResolve_gt___add_typealias_to_yaml"
+    )
+
+
+def test_render_typealias_probes_emits_comment_and_sorted_using_lines():
+    r = RenderBuffer()
+    render_typealias_probes(r, ["CantResolve", "AlsoCantResolve"])
+    out = r.getvalue()
+    assert "semiwrap diagnostic" in out
+    assert "add a typealias entry" in out
+    assert out.index(
+        "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
+    ) < out.index("using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml")
+    assert (
+        "using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml "
+        "[[maybe_unused]] = CantResolve;"
+    ) in out
+
+
+def test_render_typealias_probes_mentions_provided_yaml_path(tmp_path: Path):
+    real_dir = tmp_path / "real"
+    link_dir = tmp_path / "link"
+    real_dir.mkdir()
+    link_dir.symlink_to(real_dir, target_is_directory=True)
+
+    r = RenderBuffer()
+    yml = link_dir / "using.yml"
+    render_typealias_probes(r, ["CantResolve"], yaml_path=yml)
+
+    out = r.getvalue()
+    assert f"add a typealias entry for `CantResolve` to {yml}." in out
+    assert "to the semiwrap yaml file" not in out
+
+
+def test_render_typealias_probes_deduplicates_duplicate_input():
+    r = RenderBuffer()
+    render_typealias_probes(r, ["CantResolve", "CantResolve"])
+    out = r.getvalue()
+    assert (
+        out.count("using semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml")
+        == 1
+    )
+
+
+def test_probe_alias_name_distinguishes_namespaces_from_templates():
+    assert probe_alias_name("A::B") != probe_alias_name("A<B>")
+
+
+def test_probe_alias_name_distinguishes_general_sanitizer_collisions():
+    assert probe_alias_name("A<B>") != probe_alias_name("A_B")
+
+
+def test_helper_uses_deferred_annotations_for_python_38_runtime_compatibility():
+    source = Path(typealias_probe.__file__).read_text()
+    assert source.startswith("from __future__ import annotations\n")
+
+
+def parse_fixture_header(header_name: str, yaml_name: str):
+    yml = FIXTURE_YAML_ROOT / yaml_name
+    cfg = AutowrapConfigYaml.from_file(yml)
+    return parse_header(
+        Path(header_name).stem,
+        FIXTURE_INCLUDE_ROOT / header_name,
+        FIXTURE_INCLUDE_ROOT,
+        GeneratorData(cfg, yml),
+        ParserOptions(),
+        {},
+        False,
+    )
+
+
+def parse_fixture_header_with_yaml(header_name: str, yml: Path):
+    cfg = AutowrapConfigYaml.from_file(yml)
+    return parse_header(
+        Path(header_name).stem,
+        FIXTURE_INCLUDE_ROOT / header_name,
+        FIXTURE_INCLUDE_ROOT,
+        GeneratorData(cfg, yml),
+        ParserOptions(),
+        {},
+        False,
+    )
+
+
+def parse_tmp_header(tmp_path: Path, name: str, header: str, yaml_text: str):
+    header_path = tmp_path / f"{name}.h"
+    yaml_path = tmp_path / f"{name}.yml"
+    header_path.write_text(header)
+    yaml_path.write_text(yaml_text)
+    cfg = AutowrapConfigYaml.from_file(yaml_path)
+    return parse_header(
+        name,
+        header_path,
+        tmp_path,
+        GeneratorData(cfg, yaml_path),
+        ParserOptions(),
+        {},
+        False,
+    )
+
+
+def test_parse_header_skips_configured_global_function_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    assert "AlsoCantResolve" not in hctx.typealias_probes
+
+
+def test_parse_header_skips_non_overloaded_global_direct_function_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "global_direct_function",
+        """
+#pragma once
+
+namespace parent {
+struct ControlWord {};
+namespace child {
+void set_program_state(const ControlWord& word);
+}
+}
+""",
+        """
+classes:
+  parent::ControlWord:
+    ignore: true
+functions:
+  set_program_state:
+""",
+    )
+
+    assert "ControlWord" not in hctx.typealias_probes
+
+
+def test_parse_header_skips_configured_class_constructor_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+    assert "CantResolve" not in cls.typealias_probes
+
+
+def test_parse_header_skips_fixture_global_generated_lambda_return_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+
+    assert "REVLibError" not in hctx.typealias_probes
+
+
+def test_parse_header_skips_autogenerated_inner_alias_typealias_probes():
+    hctx = parse_fixture_header("retval.h", "retval.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "RetvalClass")
+    assert cls.typealias_probes == []
+
+
+def test_parse_header_skips_embedded_using_alias_typealias_probes():
+    hctx = parse_fixture_header("using2.h", "using2.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "Using1")
+    assert cls.typealias_probes == []
+
+
+def test_parse_header_skips_local_user_alias_template_typealias_probes():
+    hctx = parse_fixture_header("using2.h", "using2.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "Using3")
+    assert "fancy_list<int>" not in cls.typealias_probes
+
+
+def test_parse_header_skips_targets_with_local_alias_template_arguments(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "nested_local_alias_arg",
+        """
+#pragma once
+
+namespace units {
+template <typename U> struct unit_t {};
+}
+
+struct NestedLocalAliasArg {
+    using Velocity = int;
+    using kv_unit = int;
+
+    NestedLocalAliasArg(units::unit_t<kv_unit> gain) {}
+    void calculate(units::unit_t<Velocity> velocity) {}
+};
+""",
+        """
+classes:
+  units::unit_t:
+    ignore: true
+  NestedLocalAliasArg:
+    methods:
+      NestedLocalAliasArg:
+      calculate:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "NestedLocalAliasArg")
+    assert "Velocity" not in cls.typealias_probes
+    assert "kv_unit" not in cls.typealias_probes
+    assert "units::unit_t<Velocity>" not in cls.typealias_probes
+    assert "units::unit_t<kv_unit>" not in cls.typealias_probes
+
+
+def test_parse_header_suppresses_class_template_parameter_probe():
+    hctx = parse_fixture_header("templates/tvchild.h", "tvchild.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "TVChild")
+    assert "N" not in cls.typealias_probes
+
+
+def test_parse_header_collects_missing_yaml_typealias_probes(tmp_path):
+    yml = tmp_path / "using_missing_typealias.yml"
+    yml.write_text(
+        """
+classes:
+  cr::inner::ProtectedUsing:
+    methods:
+      ProtectedUsing:
+        overloads:
+          "":
+          CantResolve:
+  cr::inner::VirtualReturnProbe:
+    ignore: true
+  cr::inner::ConfiguredAliasReturnProbe:
+    ignore: true
+  u::FwdDecl:
+    attributes:
+      x:
+functions:
+  fn_using:
+    overloads:
+      AlsoCantResolve:
+      std::string:
+"""
+    )
+
+    hctx = parse_fixture_header_with_yaml("using.h", yml)
+    cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+
+    assert "AlsoCantResolve" in hctx.typealias_probes
+    assert "CantResolve" in cls.typealias_probes
+
+
+def test_parse_header_preserves_dependent_missing_alias_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "dependent_alias",
+        """
+#pragma once
+
+template <typename N>
+struct DependentAliasHolder {
+    DependentAliasHolder(MissingAlias<N> value);
+};
+""",
+        """
+classes:
+  DependentAliasHolder:
+    template_params:
+    - typename N
+    methods:
+      DependentAliasHolder:
+        overloads:
+          MissingAlias<N>:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "DependentAliasHolder")
+    assert cls.typealias_probes == []
+    assert cls.wrapped_typealias_probes == ["MissingAlias<N>"]
+
+
+def test_render_template_binder_emits_dependent_wrapped_typealias_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "dependent_alias",
+        """
+#pragma once
+
+template <typename N>
+struct DependentAliasHolder {
+    DependentAliasHolder(MissingAlias<N> value);
+};
+""",
+        """
+classes:
+  DependentAliasHolder:
+    template_params:
+    - typename N
+    methods:
+      DependentAliasHolder:
+        overloads:
+          MissingAlias<N>:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "DependentAliasHolder")
+    out = render_cls_trampoline_hpp(hctx, cls)
+    probe = "semiwrap_typealias_probe_MissingAlias_lt_N_gt___add_typealias_to_yaml"
+
+    assert probe in out
+    assert out.index(probe) < out.index("py::init<MissingAlias<N>>")
+
+
+def test_parse_header_skips_cpp_code_constructor_original_param_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "cpp_code_constructor_probe",
+        """
+#pragma once
+
+struct MissingCtorAlias {};
+struct CppCodeCtorProbe {
+    CppCodeCtorProbe(MissingCtorAlias value) {}
+    CppCodeCtorProbe() = default;
+};
+""",
+        """
+classes:
+  MissingCtorAlias:
+    ignore: true
+  CppCodeCtorProbe:
+    methods:
+      CppCodeCtorProbe:
+        cpp_code: "[]() { return new CppCodeCtorProbe(); }"
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "CppCodeCtorProbe")
+    assert "MissingCtorAlias" not in cls.typealias_probes
+    assert "MissingCtorAlias" not in cls.wrapped_typealias_probes
+    assert "semiwrap_typealias_probe_MissingCtorAlias" not in render_wrapped_cpp(hctx)
+
+
+def test_parse_header_suppresses_non_type_function_template_parameter_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "non_type_template_param",
+        """
+#pragma once
+
+template <int N>
+void takes_value_template(TVParam<N> value);
+""",
+        """
+functions:
+  takes_value_template:
+    cpp_code: "[](auto) {}"
+""",
+    )
+
+    assert "N" not in hctx.typealias_probes
+    assert "TVParam<N>" not in hctx.typealias_probes
+
+
+def test_parse_header_suppresses_method_template_dependent_alias_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "method_template_param",
+        """
+#pragma once
+
+struct MethodTemplateProbe {
+    virtual ~MethodTemplateProbe() = default;
+
+protected:
+    template <typename T>
+    void hidden(Alias<T> value) {}
+};
+""",
+        """
+classes:
+  MethodTemplateProbe:
+    methods:
+      hidden:
+        cpp_code: "[](auto&, auto) {}"
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "MethodTemplateProbe")
+    assert "T" not in cls.typealias_probes
+    assert "Alias<T>" not in cls.typealias_probes
+
+
+def test_parse_header_skips_force_no_trampoline_virtual_method_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "force_no_trampoline_virtual",
+        """
+#pragma once
+
+struct ForceNoTrampolineBase {
+    struct ControlVector {};
+    virtual const ControlVector& get() const = 0;
+};
+
+struct ForceNoTrampolineDerived : ForceNoTrampolineBase {
+    const ControlVector& get() const override;
+};
+""",
+        """
+classes:
+  ForceNoTrampolineBase:
+    ignore: true
+  ForceNoTrampolineDerived:
+    force_no_trampoline: true
+    methods:
+      get:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "ForceNoTrampolineDerived")
+    assert "ControlVector" not in cls.typealias_probes
+
+
+def test_parse_header_collects_public_generated_lambda_method_probe(tmp_path):
+    hctx = parse_tmp_header(
+        tmp_path,
+        "generated_lambda_probe",
+        """
+#pragma once
+
+struct GeneratedLambdaProbe {
+    void needs_lambda(MissingLambdaAlias value, int* out) {}
+};
+""",
+        """
+classes:
+  GeneratedLambdaProbe:
+    methods:
+      needs_lambda:
+""",
+    )
+
+    cls = next(c for c in hctx.classes if c.cpp_name == "GeneratedLambdaProbe")
+    assert "MissingLambdaAlias" not in cls.typealias_probes
+    assert "MissingLambdaAlias" in cls.wrapped_typealias_probes
+
+
+def test_render_wrapped_cpp_skips_configured_global_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    out = render_wrapped_cpp(hctx)
+    probe = "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
+    assert "using AlsoCantResolve = cr::AlsoCantResolve;" in out
+    assert probe not in out
+
+
+def test_render_wrapped_cpp_skips_configured_class_typealias_probe():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    out = render_wrapped_cpp(hctx)
+    probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    assert probe not in out
+
+
+def test_render_wrapped_cpp_skips_fixture_virtual_return_probe_used_only_by_trampoline():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "VirtualReturnProbe")
+    probe = "semiwrap_typealias_probe_REVLibError__add_typealias_to_yaml"
+
+    wrapped = render_wrapped_cpp(hctx)
+    assert probe not in wrapped
+
+    trampoline = render_cls_trampoline_hpp(hctx, cls)
+    assert probe in trampoline
+    assert "REVLibError setPosition(double position) override" in trampoline
+
+
+def test_render_trampoline_hpp_skips_probe_for_configured_class_typealias():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "ConfiguredAliasReturnProbe")
+    probe = "semiwrap_typealias_probe_ConfiguredAliasReturn__add_typealias_to_yaml"
+
+    trampoline = render_cls_trampoline_hpp(hctx, cls)
+    using_alias = "using ConfiguredAliasReturn = cr::ConfiguredAliasReturn;"
+    method_decl = "ConfiguredAliasReturn getError() override"
+
+    assert using_alias in trampoline
+    assert method_decl in trampoline
+    assert probe not in trampoline
+
+
+def test_render_wrapped_cpp_deduplicates_class_typealias_probes_in_initializer_scope():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    fwd_decl = next(c for c in hctx.classes if c.cpp_name == "FwdDecl")
+    fwd_decl.wrapped_typealias_probes.append("CantResolve")
+    out = render_wrapped_cpp(hctx)
+    probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    assert out.count(f"using {probe}") == 1
+
+
+def test_render_wrapped_cpp_skips_templated_child_typealias_probes():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    parent = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+    child_template = next(c for c in hctx.classes if c.cpp_name == "FwdDecl")
+    child_template.template = ClassTemplateData("", "", "")
+    child_template.wrapped_typealias_probes.append("ChildTemplateProbe")
+    parent.child_classes.append(child_template)
+    hctx.classes = [parent]
+
+    out = render_wrapped_cpp(hctx)
+
+    assert (
+        "semiwrap_typealias_probe_ChildTemplateProbe__add_typealias_to_yaml" not in out
+    )
+
+
+def test_render_trampoline_hpp_emits_missing_class_typealias_probe(tmp_path):
+    yml = tmp_path / "using_missing_typealias.yml"
+    yml.write_text(
+        """
+classes:
+  cr::inner::ProtectedUsing:
+    methods:
+      ProtectedUsing:
+        overloads:
+          "":
+          CantResolve:
+  cr::inner::VirtualReturnProbe:
+    ignore: true
+  cr::inner::ConfiguredAliasReturnProbe:
+    ignore: true
+  u::FwdDecl:
+    attributes:
+      x:
+functions:
+  fn_using:
+    overloads:
+      AlsoCantResolve:
+      std::string:
+"""
+    )
+    hctx = parse_fixture_header_with_yaml("using.h", yml)
+    cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
+    out = render_cls_trampoline_hpp(hctx, cls)
+    probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
+    assert probe in out
+    assert out.index(probe) < out.index("PyTrampoline_ProtectedUsing(CantResolve")
+    assert "add a typealias entry for `CantResolve` to the semiwrap yaml file." in out
+    assert str(hctx.orig_yaml) not in out
