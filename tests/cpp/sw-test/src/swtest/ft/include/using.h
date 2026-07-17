@@ -24,6 +24,12 @@ public:
   virtual REVLibError setPosition(double position) { return 1; }
 };
 
+class ConfiguredAliasReturnProbe {
+public:
+  virtual ~ConfiguredAliasReturnProbe() = default;
+  virtual ConfiguredAliasReturn getError() { return 1; }
+};
+
 inline void fn_using(AlsoCantResolve t) {}
 inline void fn_using(std::string t) {}
 inline REVLibError fn_lambda_return_probe(double position, int* status) {

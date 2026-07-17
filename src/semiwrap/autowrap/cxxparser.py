@@ -372,8 +372,9 @@ class AutowrapVisitor:
         )
         self.types = set()
         self.user_types = set()
+        self.user_typealias_names: typing.Set[str] = set()
         self._extract_typealias(
-            self.user_cfg.typealias, self.hctx.user_typealias, set()
+            self.user_cfg.typealias, self.hctx.user_typealias, self.user_typealias_names
         )
 
     def _add_typealias_probes(
@@ -1259,12 +1260,14 @@ class AutowrapVisitor:
         )
         if needs_any_typealias_probe:
             suppressed_names = set(cdata.local_typealias_names)
+            suppressed_names.update(cdata.typealias_names)
             method_template_names = self._template_type_param_names(method.template)
             suppressed_names.update(method_template_names)
             class_template_names = {
                 param.split()[-1] for param in cdata.data.template_params or []
             }
             suppressed_template_aliases = set(cdata.local_typealias_names)
+            suppressed_template_aliases.update(cdata.typealias_names)
             suppressed_template_aliases.difference_update(class_template_names)
             suppressed_template_aliases.update(
                 self._template_typealias_names(cdata.data.typealias)
@@ -2369,6 +2372,7 @@ def parse_header(
         if fctx.is_overloaded or fctx.genlambda:
             fn = fctx._fn
             suppressed_names = visitor._template_type_param_names(fn.template)
+            suppressed_names.update(visitor.user_typealias_names)
             if fctx.is_overloaded and not fctx.genlambda and not fctx.cpp_code:
                 visitor._add_typealias_probes(
                     hctx.typealias_probes,

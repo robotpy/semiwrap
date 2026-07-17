@@ -13,6 +13,11 @@ classes:
   cr::inner::VirtualReturnProbe:
     methods:
       setPosition:
+  cr::inner::ConfiguredAliasReturnProbe:
+    typealias:
+    - cr::ConfiguredAliasReturn
+    methods:
+      getError:
   u::FwdDecl:
     attributes:
       x:

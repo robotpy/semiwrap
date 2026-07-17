@@ -160,9 +160,9 @@ def parse_tmp_header(tmp_path: Path, name: str, header: str, yaml_text: str):
     )
 
 
-def test_parse_header_collects_global_function_typealias_probe():
+def test_parse_header_skips_configured_global_function_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
-    assert "AlsoCantResolve" in hctx.typealias_probes
+    assert "AlsoCantResolve" not in hctx.typealias_probes
 
 
 def test_parse_header_skips_non_overloaded_global_direct_function_probe(tmp_path):
@@ -191,10 +191,10 @@ functions:
     assert "ControlWord" not in hctx.typealias_probes
 
 
-def test_parse_header_collects_class_constructor_typealias_probe():
+def test_parse_header_skips_configured_class_constructor_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
-    assert "CantResolve" in cls.typealias_probes
+    assert "CantResolve" not in cls.typealias_probes
 
 
 def test_parse_header_skips_fixture_global_generated_lambda_return_probe():
@@ -276,6 +276,8 @@ classes:
           "":
           CantResolve:
   cr::inner::VirtualReturnProbe:
+    ignore: true
+  cr::inner::ConfiguredAliasReturnProbe:
     ignore: true
   u::FwdDecl:
     attributes:
@@ -491,28 +493,19 @@ classes:
     assert "MissingLambdaAlias" in cls.wrapped_typealias_probes
 
 
-def test_render_wrapped_cpp_emits_global_typealias_probe_before_initializer():
+def test_render_wrapped_cpp_skips_configured_global_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     out = render_wrapped_cpp(hctx)
     probe = "semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml"
-    assert probe in out
-    assert out.index("using namespace u;") < out.index(probe)
-    assert out.index(probe) < out.index("struct semiwrap_using_initializer")
-    assert (
-        "using semiwrap_typealias_probe_AlsoCantResolve__add_typealias_to_yaml" in out
-    )
-    assert "= AlsoCantResolve;" in out
-    assert f"add a typealias entry for `AlsoCantResolve` to {hctx.orig_yaml}." in out
+    assert "using AlsoCantResolve = cr::AlsoCantResolve;" in out
+    assert probe not in out
 
 
-def test_render_wrapped_cpp_emits_class_typealias_probe_inside_initializer():
+def test_render_wrapped_cpp_skips_configured_class_typealias_probe():
     hctx = parse_fixture_header("using.h", "using.yml")
     out = render_wrapped_cpp(hctx)
     probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
-    assert probe in out
-    assert out.index("struct semiwrap_using_initializer") < out.index(probe)
-    assert out.index(probe) < out.index("py::class_<typename cr::inner::ProtectedUsing")
-    assert f"add a typealias entry for `CantResolve` to {hctx.orig_yaml}." in out
+    assert probe not in out
 
 
 def test_render_wrapped_cpp_skips_fixture_virtual_return_probe_used_only_by_trampoline():
@@ -526,6 +519,20 @@ def test_render_wrapped_cpp_skips_fixture_virtual_return_probe_used_only_by_tram
     trampoline = render_cls_trampoline_hpp(hctx, cls)
     assert probe in trampoline
     assert "REVLibError setPosition(double position) override" in trampoline
+
+
+def test_render_trampoline_hpp_skips_probe_for_configured_class_typealias():
+    hctx = parse_fixture_header("using.h", "using.yml")
+    cls = next(c for c in hctx.classes if c.cpp_name == "ConfiguredAliasReturnProbe")
+    probe = "semiwrap_typealias_probe_ConfiguredAliasReturn__add_typealias_to_yaml"
+
+    trampoline = render_cls_trampoline_hpp(hctx, cls)
+    using_alias = "using ConfiguredAliasReturn = cr::ConfiguredAliasReturn;"
+    method_decl = "ConfiguredAliasReturn getError() override"
+
+    assert using_alias in trampoline
+    assert method_decl in trampoline
+    assert probe not in trampoline
 
 
 def test_render_wrapped_cpp_deduplicates_class_typealias_probes_in_initializer_scope():
@@ -553,8 +560,32 @@ def test_render_wrapped_cpp_skips_templated_child_typealias_probes():
     )
 
 
-def test_render_trampoline_hpp_emits_class_typealias_probe():
-    hctx = parse_fixture_header("using.h", "using.yml")
+def test_render_trampoline_hpp_emits_missing_class_typealias_probe(tmp_path):
+    yml = tmp_path / "using_missing_typealias.yml"
+    yml.write_text(
+        """
+classes:
+  cr::inner::ProtectedUsing:
+    methods:
+      ProtectedUsing:
+        overloads:
+          "":
+          CantResolve:
+  cr::inner::VirtualReturnProbe:
+    ignore: true
+  cr::inner::ConfiguredAliasReturnProbe:
+    ignore: true
+  u::FwdDecl:
+    attributes:
+      x:
+functions:
+  fn_using:
+    overloads:
+      AlsoCantResolve:
+      std::string:
+"""
+    )
+    hctx = parse_fixture_header_with_yaml("using.h", yml)
     cls = next(c for c in hctx.classes if c.cpp_name == "ProtectedUsing")
     out = render_cls_trampoline_hpp(hctx, cls)
     probe = "semiwrap_typealias_probe_CantResolve__add_typealias_to_yaml"
