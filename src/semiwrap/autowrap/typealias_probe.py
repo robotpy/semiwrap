@@ -166,7 +166,6 @@ def render_typealias_probes(
     r: RenderBuffer,
     probes: T.Sequence[str],
     *,
-    indent: str = "",
     yaml_path: str | pathlib.Path | None = None,
 ) -> None:
     if yaml_path is not None:
@@ -177,15 +176,15 @@ def render_typealias_probes(
     for target in sorted(set(probes)):
         alias = probe_alias_name(target)
         r.writeln(
-            f"{indent}// semiwrap diagnostic: if this line fails because `{target}` "
+            f"// semiwrap diagnostic: if this line fails because `{target}` "
             "is unknown,"
         )
         if yaml_target is None:
             r.writeln(
-                f"{indent}// add a typealias entry for `{target}` to the semiwrap yaml file."
+                f"// add a typealias entry for `{target}` to the semiwrap yaml file."
             )
         else:
             r.writeln(
-                f"{indent}// add a typealias entry for `{target}` to {yaml_target}."
+                f"// add a typealias entry for `{target}` to {yaml_target}."
             )
-        r.writeln(f"{indent}using {alias} [[maybe_unused]] = {target};")
+        r.writeln(f"using {alias} [[maybe_unused]] = {target};")
