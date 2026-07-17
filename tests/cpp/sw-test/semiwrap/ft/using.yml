@@ -10,6 +10,9 @@ classes:
         overloads:
           "":
           CantResolve:
+  cr::inner::VirtualReturnProbe:
+    methods:
+      setPosition:
   u::FwdDecl:
     attributes:
       x:
@@ -18,3 +21,4 @@ functions:
     overloads:
       AlsoCantResolve:
       std::string:
+  fn_lambda_return_probe:

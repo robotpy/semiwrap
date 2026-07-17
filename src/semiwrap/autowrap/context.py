@@ -490,9 +490,13 @@ class ClassContext:
     auto_typealias: typing.List[str] = field(default_factory=list)
 
     #: Best-effort C++ type spellings that should be probed before generated
-    #: code uses them. These produce clearer compile-time diagnostics when a
-    #: YAML typealias entry is missing.
+    #: class/trampoline code uses them. These produce clearer compile-time
+    #: diagnostics when a YAML typealias entry is missing.
     typealias_probes: typing.List[str] = field(default_factory=list)
+
+    #: Best-effort C++ type spellings that should be probed before generated
+    #: wrapped initializer code uses them.
+    wrapped_typealias_probes: typing.List[str] = field(default_factory=list)
 
     #: vcheck are various static asserts that check things about the
     #: inline functions

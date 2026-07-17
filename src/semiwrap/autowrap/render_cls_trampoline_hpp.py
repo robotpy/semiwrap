@@ -392,6 +392,8 @@ def _render_cls_template_impl(
     with r.indent():
         rpybind11.cls_user_using(r, cls)
         rpybind11.cls_auto_using(r, cls)
+        if cls.wrapped_typealias_probes:
+            render_typealias_probes(r, cls.wrapped_typealias_probes)
         rpybind11.cls_consts(r, cls)
         rpybind11.cls_decl(r, cls)
 
