@@ -151,7 +151,7 @@ class GeneratorData:
                 data = self._default_fn_data
             report_data.deferred_signatures.append((fn, is_private))
         elif not data.overloads:
-            report_data.deferred_signatures.append((fn, is_private))
+            report_data.deferred_signatures.append((fn, is_private or data.ignore))
         else:
             # When there is overload data present, we have to actually compute
             # the signature of every function
