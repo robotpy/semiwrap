@@ -147,6 +147,11 @@ class OverloadData:
     #: ``disable_none`` in ParamData.
     disable_none: Optional[bool] = None
 
+    #: If True, Python arguments with defaults are keyword-only. Overload
+    #: settings inherit from the function setting, then from
+    #: ``defaults.default_args_as_kw_only``.
+    default_args_as_kw_only: Optional[bool] = None
+
     #: If True, prepends an underscore to the python name
     internal: bool = False
 
@@ -531,6 +536,9 @@ class Defaults:
     #: If specified, any non-const ``Foo&`` parameters will be assumed to be
     #: an 'out' parameter
     references_are_out_param: bool = False
+
+    #: If True, Python arguments with defaults are keyword-only
+    default_args_as_kw_only: bool = False
 
 
 @dataclasses.dataclass(frozen=True)

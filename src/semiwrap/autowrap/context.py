@@ -208,6 +208,9 @@ class FunctionContext:
 
     return_value_policy: str
 
+    #: If True, Python arguments with defaults are keyword-only
+    default_args_as_kw_only: bool
+
     #
     # User settings from autowrap_yml.FunctionData
     #

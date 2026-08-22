@@ -1529,6 +1529,10 @@ class AutowrapVisitor:
                         f"{fn_name}: cannot specify template_impls for non-template functions"
                     )
 
+        default_args_as_kw_only = data.default_args_as_kw_only
+        if default_args_as_kw_only is None:
+            default_args_as_kw_only = self.user_cfg.defaults.default_args_as_kw_only
+
         fctx = FunctionContext(
             cpp_name=fn_name,
             doc=doc,
@@ -1541,6 +1545,7 @@ class AutowrapVisitor:
             has_buffers=bool(data.buffers),
             keepalives=keepalives,
             return_value_policy=return_value_policy,
+            default_args_as_kw_only=default_args_as_kw_only,
             # info
             # vararg=fn.vararg,
             # user settings
