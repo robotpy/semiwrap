@@ -146,7 +146,18 @@ def _genmethod(
             r.writeln(f"{fn_def}, {fn_cast}&{fn_ns}::{fn_name}{tmpl}{paren}")
 
     if arg_params:
-        r.writeln(f"  , {', '.join(param.py_arg for param in arg_params)}")
+        py_args = []
+        kw_only_inserted = False
+        for param in arg_params:
+            if (
+                fn.default_args_as_kw_only
+                and not kw_only_inserted
+                and param.default is not None
+            ):
+                py_args.append("py::kw_only()")
+                kw_only_inserted = True
+            py_args.append(param.py_arg)
+        r.writeln(f"  , {', '.join(py_args)}")
 
     other_params = []
 
