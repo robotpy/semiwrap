@@ -29,8 +29,8 @@ def main():
 
     # make sure the include directories actually exist
     include_dirs = []
-    for inc in cfg.includedir:
-        includedir = project.root / pathlib.Path(inc)
+    for include_name in cfg.includedir:
+        includedir = project.root / pathlib.Path(include_name)
         include_dirs.append(includedir)
         if not includedir.exists():
             print(f"ERROR: {includedir} does not exist", file=sys.stderr)
@@ -63,8 +63,8 @@ def main():
 
         # Ensure the published header actually exists
         searched = []
-        for inc in include_dirs:
-            full_hdr = inc / hdr.header
+        for include_dir in include_dirs:
+            full_hdr = include_dir / hdr.header
             if full_hdr.exists():
                 break
 

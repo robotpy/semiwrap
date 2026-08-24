@@ -95,26 +95,26 @@ class HeaderScanner:
                             all_present.add(inc / h.header)
 
             for name, ext in project.extension_modules.items():
-                files = []
-                for _, f in ext.headers.items():
-                    if isinstance(f, str):
-                        files.append(Path(f))
+                configured_files: T.List[Path] = []
+                for _, configured_header in ext.headers.items():
+                    if isinstance(configured_header, str):
+                        configured_files.append(Path(configured_header))
                     else:
-                        files.append(Path(f.header))
+                        configured_files.append(Path(configured_header.header))
 
-                if not files:
+                if not configured_files:
                     continue
 
                 present = set()
                 for incdir in search_paths[name]:
                     incdir = Path(incdir)
 
-                    for f in files:
-                        if (incdir / f).exists():
-                            present.add(f)
-                            all_present.add(incdir / f)
+                    for configured_file in configured_files:
+                        if (incdir / configured_file).exists():
+                            present.add(configured_file)
+                            all_present.add(incdir / configured_file)
 
-                all_missing |= set(files) - present
+                all_missing |= set(configured_files) - present
 
         all_search_paths = set()
         for ps in search_paths.values():
@@ -124,11 +124,11 @@ class HeaderScanner:
         for incdir in sorted(all_search_paths, key=lambda pth: -len(pth.parts)):
             files: T.List[Path] = []
 
-            for f in chain(
+            for found_file in chain(
                 glob.glob(join(incdir, "**", "*.h"), recursive=True),
                 glob.glob(join(incdir, "**", "*.hpp"), recursive=True),
             ):
-                rf = relpath(f, incdir)
+                rf = relpath(found_file, incdir)
 
                 if _should_ignore(rf):
                     all_present.add(incdir / rf)
@@ -151,8 +151,8 @@ class HeaderScanner:
                 comment = "#"
 
             lastdir = None
-            for f in files:
-                thisdir = f.parent
+            for discovered_file in files:
+                thisdir = discovered_file.parent
                 if lastdir is None:
                     if thisdir:
                         print(comment, thisdir)
@@ -162,18 +162,18 @@ class HeaderScanner:
                         print(comment, thisdir)
                 lastdir = thisdir
 
-                base = f.stem
+                base = discovered_file.stem
                 if args.as_ignore:
-                    print(f'    "{f.as_posix()}",')
+                    print(f'    "{discovered_file.as_posix()}",')
                 else:
-                    print(f'{base} = "{f.as_posix()}"')
+                    print(f'{base} = "{discovered_file.as_posix()}"')
             print()
 
         if all_missing:
             has_difference = True
             print()
-            for f in sorted(all_missing):
-                print(f"# missing: {f}")
+            for missing_file in sorted(all_missing):
+                print(f"# missing: {missing_file}")
 
         if args.check:
             return not has_difference

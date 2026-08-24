@@ -17,8 +17,8 @@ class PyProject:
             self.root = pathlib.Path().resolve()
 
         self._platform = None
-        self._project = None
-        self._package_root = None
+        self._project: T.Optional[SemiwrapToolConfig] = None
+        self._package_root: T.Optional[pathlib.Path] = None
 
         self._all_deps = None
 
@@ -53,7 +53,7 @@ class PyProject:
         return self._package_root
 
     @property
-    def project(self):
+    def project(self) -> SemiwrapToolConfig:
         if self._project is None:
             project_fname = self.root / "pyproject.toml"
 

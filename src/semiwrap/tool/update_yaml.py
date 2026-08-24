@@ -360,13 +360,14 @@ class YamlUpdater:
             strbuff.seek(0)
             merged_lines = strbuff.readlines()
 
-            differences = difflib.unified_diff(
-                output_lines,
-                merged_lines,
-                fromfile=str(f),
-                tofile=str(f),
+            differences = list(
+                difflib.unified_diff(
+                    output_lines,
+                    merged_lines,
+                    fromfile=str(f),
+                    tofile=str(f),
+                )
             )
-            differences = list(differences)
 
             if differences:
                 files_updated += 1

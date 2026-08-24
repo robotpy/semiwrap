@@ -20,6 +20,7 @@ from semiwrap.config.pyproject_toml import ExtensionModuleConfig, SemiwrapToolCo
 from semiwrap.makeplan import BuildTarget, makeplan
 from semiwrap.name_transform import (
     NameTransformConfig,
+    NameTransforms,
     merge_name_transform_configs,
     name_transform_config_to_args,
     resolve_name_transforms,
@@ -212,6 +213,37 @@ def test_parse_header_does_not_transform_enum_value_rename(tmp_path):
     )
 
     assert hctx.enums[0].values[0].py_name == "BrightRed"
+
+
+def test_parse_header_accepts_name_transform_parameter_names_other_than_kind(tmp_path):
+    header = tmp_path / "x.h"
+    header.write_text("inline int GetValue() { return 1; }\n")
+    cfg = AutowrapConfigYaml(functions={"GetValue": FunctionData()})
+    gendata = GeneratorData(cfg, tmp_path / "x.yml")
+
+    def transform(name, category):
+        return f"{category}_{name}"
+
+    transforms = NameTransforms(
+        function=transform,
+        method=transform,
+        attribute=transform,
+        enum_value=transform,
+        parameter=transform,
+    )
+
+    hctx = parse_header(
+        "x",
+        header,
+        tmp_path,
+        gendata,
+        ParserOptions(),
+        {},
+        False,
+        name_transforms=transforms,
+    )
+
+    assert hctx.functions[0].py_name == "function_GetValue"
 
 
 def test_parse_header_transforms_function_parameter_names(tmp_path):

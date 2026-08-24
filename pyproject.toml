@@ -37,6 +37,15 @@ dependencies = [
     "pybind11 ~= 3.0.2",
 ]
 
+[project.optional-dependencies]
+typecheck = [
+    "black == 25.1.0",
+    "hatchling",
+    "mypy",
+    "types-PyYAML",
+    "types-toposort",
+]
+
 [project.entry-points.hatch]
 semiwrap = "semiwrap.hooks"
 
@@ -60,3 +69,12 @@ packages = ["src/semiwrap"]
 
 [tool.black]
 target-version = ["py38"]
+
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+mypy_path = "typings"
+
+[[tool.mypy.overrides]]
+module = "sphinxify"
+follow_untyped_imports = true

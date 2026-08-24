@@ -40,7 +40,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
     - uses: pre-commit/action@v3.0.1
+    - name: Install type-check dependencies
+      run: python -m pip --disable-pip-version-check install -e '.[typecheck]'
+    - name: Mypy
+      run: python -m mypy src
   
   check-doc:
     runs-on: ubuntu-22.04

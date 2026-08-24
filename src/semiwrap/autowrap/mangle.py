@@ -56,14 +56,14 @@ _type_bad_chars = ":<>=()&,"
 _type_trans = str.maketrans(_type_bad_chars, "_" * len(_type_bad_chars))
 
 
-def _encode_type(dt: DecoratedType, names: typing.List[str]) -> str:
+def _encode_type(dt: DecoratedType, names: typing.List[str]) -> None:
     # Decode the type
     ptrs = 0
     refs = 0
     const = False
     volatile = False
 
-    t = dt
+    t: typing.Union[DecoratedType, FunctionType] = dt
     while True:
         if isinstance(t, Type):
             const = const or t.const
