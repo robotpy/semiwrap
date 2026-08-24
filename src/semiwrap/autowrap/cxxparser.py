@@ -4,7 +4,6 @@
 #
 
 import dataclasses
-import functools
 import pathlib
 import re
 import sys
@@ -92,7 +91,12 @@ from .context import (
     TrampolineData,
 )
 
-from ..name_transform import NameTransforms, resolve_name_transforms
+from ..name_transform import (
+    NameKind,
+    NameTransform,
+    NameTransforms,
+    resolve_name_transforms,
+)
 from ..util import relpath_walk_up
 
 
@@ -329,6 +333,12 @@ AWState = typing.Union[AWExternBlockState, AWNamespaceBlockState, AWClassBlockSt
 AWNonClassBlockState = typing.Union[AWExternBlockState, AWNamespaceBlockState]
 
 
+def _bind_name_transform(
+    transform: NameTransform, kind: NameKind
+) -> typing.Callable[[str], str]:
+    return lambda name: transform(name, kind)
+
+
 class AutowrapVisitor:
     """
     Collects the results of parsing a header file
@@ -351,20 +361,20 @@ class AutowrapVisitor:
         self.report_only = report_only
         self.casters = casters
         self.name_transforms = name_transforms or resolve_name_transforms("default")
-        self.function_name_transform = functools.partial(
-            self.name_transforms.function, kind="function"
+        self.function_name_transform = _bind_name_transform(
+            self.name_transforms.function, "function"
         )
-        self.method_name_transform = functools.partial(
-            self.name_transforms.method, kind="method"
+        self.method_name_transform = _bind_name_transform(
+            self.name_transforms.method, "method"
         )
-        self.attribute_name_transform = functools.partial(
-            self.name_transforms.attribute, kind="attribute"
+        self.attribute_name_transform = _bind_name_transform(
+            self.name_transforms.attribute, "attribute"
         )
-        self.enum_value_name_transform = functools.partial(
-            self.name_transforms.enum_value, kind="enum_value"
+        self.enum_value_name_transform = _bind_name_transform(
+            self.name_transforms.enum_value, "enum_value"
         )
-        self.parameter_name_transform = functools.partial(
-            self.name_transforms.parameter, kind="parameter"
+        self.parameter_name_transform = _bind_name_transform(
+            self.name_transforms.parameter, "parameter"
         )
         self.types = set()
         self.user_types = set()
@@ -549,8 +559,7 @@ class AutowrapVisitor:
             enum_scope = cls_ctx.full_cpp_name
             scope_var = cls_ctx.var_name
 
-        value_prefix = None
-        strip_prefixes = []
+        strip_prefixes: typing.List[str] = []
         values: typing.List[EnumeratorContext] = []
 
         py_name = ""
@@ -564,7 +573,6 @@ class AutowrapVisitor:
             if enum_data.value_prefix and enum_data.value_prefix != ename:
                 value_prefixes.append(enum_data.value_prefix)
 
-            strip_prefixes = []
             for value_prefix in value_prefixes:
                 strip_prefixes.extend([f"{value_prefix}_", value_prefix])
         else:
@@ -810,6 +818,7 @@ class AutowrapVisitor:
             protected_constructors=[],
             non_virtual_protected_methods=[],
         )
+        return None
 
     def _process_class_name(
         self, state: AWClassBlockState
@@ -1315,7 +1324,7 @@ class AutowrapVisitor:
                 self._on_class_field(state, f, props)
 
             state.access = "private"
-            unused = []
+            unused: typing.List[FunctionContext] = []
             for m in cdata.defer_private_virtual_methods:
                 self._on_class_method(state, m, unused)
 
@@ -2117,11 +2126,11 @@ class AutowrapVisitor:
         casters = self.casters
 
         # identify any associated headers
-        includes = set()
+        includes: typing.Set[str] = set()
         for typename in self.types:
             ccfg = casters.get(typename)
             if ccfg:
-                includes.add(ccfg.header)
+                includes.add(ccfg.header.as_posix())
 
         self.hctx.type_caster_includes = sorted(includes)
 

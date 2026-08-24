@@ -51,10 +51,10 @@ def _write_wrapper_hpp(
     for clsname, bases in types2deps.items():
         clsname = types2name[clsname]
         deps = to_sort.setdefault(clsname, set())
-        for base in bases:
-            base = types2name.get(base)
-            if base and base != clsname:
-                deps.add(base)
+        for base_class in bases:
+            base_header = types2name.get(base_class)
+            if base_header and base_header != clsname:
+                deps.add(base_header)
 
     ordering.extend(toposort.toposort_flatten(to_sort, sort=True))
 

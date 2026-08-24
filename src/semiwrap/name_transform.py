@@ -9,6 +9,15 @@ NameTransform = typing.Callable[[str, NameKind], str]
 KnownWords = typing.Sequence[str]
 
 
+class BuiltinNameTransform(typing.Protocol):
+    def __call__(
+        self,
+        name: str,
+        kind: NameKind,
+        known_words: typing.Optional[KnownWords] = None,
+    ) -> str: ...
+
+
 @dataclasses.dataclass(frozen=True)
 class NameTransformConfig:
     """
@@ -254,7 +263,7 @@ def caps_case_transform(
     )
 
 
-_BUILTINS: typing.Dict[str, NameTransform] = {
+_BUILTINS: typing.Dict[str, BuiltinNameTransform] = {
     "none": none_transform,
     "default": default_transform,
     "camelCase": camel_case_transform,
@@ -388,11 +397,12 @@ def resolve_name_transform(
 ) -> NameTransform:
     transform = _resolve_name_transform(spec)
     normalized_known_words = _normalize_known_words(known_words)
-    if not normalized_known_words or spec not in _BUILTINS:
+    builtin = _BUILTINS.get(spec)
+    if not normalized_known_words or builtin is None:
         return transform
 
     def wrapper(name: str, kind: NameKind) -> str:
-        result = transform(name, kind, normalized_known_words)  # type: ignore[misc]
+        result = builtin(name, kind, normalized_known_words)
         if not isinstance(result, str):
             raise TypeError(
                 f"name_transform {spec!r} returned {type(result).__name__}, expected str"

@@ -63,7 +63,7 @@ class ImportCreator:
             print(f"CHK base={base} compiled={compiled}")
 
         # TODO: could probably generate this from parsed code, but seems hard
-        ctx = {}
+        ctx: typing.Dict[str, typing.Any] = {}
         exec(f"from {compiled} import *", {}, ctx)
         for k in list(ctx.keys()):
             if isinstance(ctx[k], types.ModuleType):
@@ -90,7 +90,7 @@ class ImportCreator:
         ).decode("utf-8")
 
         if write:
-            fctx = {}
+            fctx: typing.Dict[str, typing.Any] = {}
             exec(f"from {base} import __file__", {}, fctx)
             fname = fctx["__file__"]
 

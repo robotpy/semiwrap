@@ -8,7 +8,19 @@ import pkgconf
 INITPY_VARNAME = "pkgconf_pypi_initpy"
 
 
+def _as_text(value: T.Union[bytes, str]) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return value
+
+
 class CacheEntry:
+
+    _requires: T.List[str]
+    _include_path: T.List[pathlib.Path]
+    _full_include_path: T.List[pathlib.Path]
+    _type_casters_path: T.Optional[pathlib.Path]
+    _libinit_py: T.Optional[str]
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -20,10 +32,10 @@ class CacheEntry:
             msg = [f"Package '{self.name}' is not installed"]
             if r.stderr:
                 msg.append("")
-                msg.append(f"> " + "\n> ".join(r.stderr.decode("utf-8").splitlines()))
+                msg.append(f"> " + "\n> ".join(_as_text(r.stderr).splitlines()))
             raise RuntimeError("\n".join(msg))
 
-        return r.stdout.decode("utf-8").strip()
+        return _as_text(r.stdout).strip()
 
     @property
     def requires(self) -> T.List[str]:
@@ -37,7 +49,7 @@ class CacheEntry:
     def include_path(self) -> T.List[pathlib.Path]:
         """Only the include path for this package"""
         if not hasattr(self, "_include_path"):
-            include_path = []
+            include_path: T.List[pathlib.Path] = []
             raw = self._get_pkgconf_data(
                 "--cflags-only-I", "--maximum-traverse-depth=1"
             )
@@ -53,7 +65,7 @@ class CacheEntry:
     def full_include_path(self) -> T.List[pathlib.Path]:
         """Include path for this package and requirements"""
         if not hasattr(self, "_full_include_path"):
-            full_include_path = []
+            full_include_path: T.List[pathlib.Path] = []
             raw = self._get_pkgconf_data("--cflags-only-I")
             for i in shlex.split(raw):
                 assert i.startswith("-I")

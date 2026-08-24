@@ -108,8 +108,8 @@ def _render_build_target(r: RenderBuffer, vc: VarCache, bt: BuildTarget):
 
     bt_cmd = bt.command.replace("-", "_")
     cmd = [f"_sw_cmd_{bt_cmd}"]
-    tinput = []
-    toutput = []
+    tinput: T.List[str] = []
+    toutput: T.List[str] = []
     depfile = None
 
     for arg in bt.args:

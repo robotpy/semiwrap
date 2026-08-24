@@ -11,10 +11,10 @@ class ValidationError(Exception):
 
 
 def _convert_validation_error(fname, ve: errors.ValidationError) -> ValidationError:
-    locs = []
-    msg = []
+    locs: typing.List[str] = []
+    messages: typing.List[str] = []
 
-    e = ve
+    e: typing.Optional[BaseException] = ve
     while e is not None:
 
         if isinstance(e, errors.WrongFieldError):
@@ -22,15 +22,15 @@ def _convert_validation_error(fname, ve: errors.ValidationError) -> ValidationEr
         elif isinstance(e, errors.WrongListItemError):
             locs.append(f"[{e.wrong_index}]")
         else:
-            msg.append(str(e))
+            messages.append(str(e))
 
         e = e.__cause__
 
     loc = "".join(locs)
     if loc.startswith("."):
         loc = loc[1:]
-    msg = "\n  ".join(msg)
-    vmsg = f"{fname}: {loc}:\n  {msg}"
+    message = "\n  ".join(messages)
+    vmsg = f"{fname}: {loc}:\n  {message}"
     return ValidationError(vmsg)
 
 

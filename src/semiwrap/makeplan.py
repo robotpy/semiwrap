@@ -101,24 +101,25 @@ class BuildTargetOutput:
     output_index: int
 
 
+BuildArg = T.Union[
+    str,
+    pathlib.Path,
+    InputFile,
+    OutputFile,
+    Depfile,
+    "BuildTarget",
+    BuildTargetOutput,
+    CppMacroValue,
+    CompilerInfo,
+    "ExtensionModule",
+]
+
+
 @dataclasses.dataclass(frozen=True)
 class BuildTarget:
     command: str
 
-    args: T.Tuple[
-        T.Union[
-            str,
-            pathlib.Path,
-            InputFile,
-            OutputFile,
-            Depfile,
-            BuildTarget,
-            BuildTargetOutput,
-            CppMacroValue,
-            CompilerInfo,
-        ],
-        ...,
-    ]
+    args: T.Tuple[BuildArg, ...]
 
     # Install path is always relative to py.get_install_dir(pure: false)
     install_path: T.Optional[pathlib.Path]
@@ -169,7 +170,7 @@ class _BuildPlanner:
         self.pyproject_input = InputFile(pathlib.Path("pyproject.toml"))
 
         self.pyi_targets: T.List[BuildTarget] = []
-        self.pyi_args = []
+        self.pyi_args: T.List[BuildArg] = []
 
         self.local_caster_targets: T.Dict[str, BuildTargetOutput] = {}
         self.local_dependencies: T.Dict[str, LocalDependency] = {}
@@ -350,7 +351,7 @@ class _BuildPlanner:
         # Publish a .pc file for this module
         #
 
-        pc_args = [
+        pc_args: T.List[BuildArg] = [
             package_name,
             varname,
             self.pyproject_input,
@@ -440,7 +441,7 @@ class _BuildPlanner:
 
         if subpackages:
             pyi_elems = base_pyi_elems + ["__init__.pyi"]
-            pyi_args = [
+            pyi_args: T.List[BuildArg] = [
                 pathlib.PurePath(*pyi_elems).as_posix(),
                 OutputFile("__init__.pyi"),
             ]
@@ -538,7 +539,7 @@ class _BuildPlanner:
         datfiles: T.List[BuildTarget] = []
         module_sources: T.List[BuildTarget] = []
         subpackages: T.Set[str] = set()
-        define_args = []
+        define_args: T.List[str] = []
 
         yaml_path = self.pyproject.get_extension_yaml_path(extension)
 
@@ -565,7 +566,7 @@ class _BuildPlanner:
                 extension.name_transform,
             )
 
-            header2dat_args = []
+            header2dat_args: T.List[BuildArg] = []
             for inc in include_directories_uniq:
                 header2dat_args += ["-I", inc]
 
@@ -608,14 +609,16 @@ class _BuildPlanner:
             if ayml.defaults.subpackage:
                 subpackages.add(ayml.defaults.subpackage)
 
-            for f in ayml.functions.values():
-                if f.ignore:
+            for function_data in ayml.functions.values():
+                if function_data.ignore:
                     continue
-                if f.subpackage:
-                    subpackages.add(f.subpackage)
-                for f in f.overloads.values():
-                    if f.subpackage:
-                        subpackages.add(f.subpackage)
+                if function_data.subpackage:
+                    subpackages.add(function_data.subpackage)
+                for overload_data in function_data.overloads.values():
+                    if overload_data.ignore:
+                        continue
+                    if overload_data.subpackage:
+                        subpackages.add(overload_data.subpackage)
 
             for e in ayml.enums.values():
                 if e.ignore:
