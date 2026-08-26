@@ -5,6 +5,11 @@ struct SPClass
 {
 };
 
+enum SPEnum
+{
+    SP_ENUM_VALUE
+};
+
 template <typename T>
 struct SPTemplate
 {

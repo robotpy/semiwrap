@@ -4,6 +4,9 @@ classes:
       Hidden: bq::Hidden
     methods:
       BaseQualname:
+  bq::detail::NamespacedRemoteTrampoline:
+    methods:
+      fn:
   bq::detail::THBaseQualname:
     base_qualnames:
       THiddenBase1: bq::THiddenBase1<bq::THiddenBase2<int>>

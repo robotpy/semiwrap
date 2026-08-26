@@ -509,6 +509,11 @@ class TemplateData:
     #: Text to append to the (autoconverted) docstring for the template instance
     doc_append: Optional[str] = None
 
+    #: Namespace containing the template class. Semiwrap normally infers this
+    #: from the qualified name. Specify this for nested templates declared in
+    #: another header when that inference treats an enclosing class as a namespace.
+    namespace: Optional[str] = None
+
 
 @dataclasses.dataclass(frozen=True)
 class Defaults:
@@ -675,6 +680,11 @@ class AutowrapConfigYaml:
 
     #: Encoding to use when opening this header file
     encoding: str = "utf-8-sig"
+
+    #: Namespace in which to render header-level inline_code. Semiwrap infers
+    #: this when all generated declarations have the same target namespace.
+    #: Specify an empty string to render inline_code in the global namespace.
+    inline_code_namespace: Optional[str] = None
 
     @classmethod
     def from_file(cls, fname) -> "AutowrapConfigYaml":

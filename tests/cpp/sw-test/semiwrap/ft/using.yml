@@ -1,10 +1,5 @@
-typealias:
-- cr::AlsoCantResolve
-
 classes:
   cr::inner::ProtectedUsing:
-    typealias:
-    - cr::CantResolve
     methods:
       ProtectedUsing:
         overloads:
@@ -18,3 +13,9 @@ functions:
     overloads:
       AlsoCantResolve:
       std::string:
+
+inline_code_namespace: cr::inner
+inline_code: |
+  m.def("explicit_inline_code_namespace", []() {
+    return std::is_same_v<CantResolve, AlsoCantResolve>;
+  });

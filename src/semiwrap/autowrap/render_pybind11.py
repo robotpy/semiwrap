@@ -382,9 +382,13 @@ def cls_decl(r: RenderBuffer, cls: ClassContext):
             cls_decl(r, ccls)
 
 
-def cls_init(r: RenderBuffer, cls: ClassContext, name: str):
-
-    init_params = [cls.scope_var, name]
+def cls_init(
+    r: RenderBuffer,
+    cls: ClassContext,
+    name: str,
+    scope_var: T.Optional[str] = None,
+):
+    init_params = [scope_var or cls.scope_var, name]
 
     if cls.final:
         init_params.append("py::is_final()")

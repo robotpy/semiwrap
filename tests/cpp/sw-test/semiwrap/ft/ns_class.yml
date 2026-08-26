@@ -2,3 +2,8 @@ classes:
   ::ns::NSClass:
     methods:
       getN:
+
+inline_code: |
+  m.def("ns_inline_code", []() {
+    return NSClass{}.getN();
+  });

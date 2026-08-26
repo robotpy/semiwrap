@@ -7,3 +7,8 @@ templates:
     qualname: RemoteTemplate
     params:
     - int
+  ProviderNestedInt:
+    qualname: ::provider_nested::Outer::Inner
+    namespace: provider_nested
+    params:
+    - int

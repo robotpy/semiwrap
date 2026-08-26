@@ -75,6 +75,7 @@ from ..config.autowrap_yml import (
     ReturnValuePolicy,
 )
 from .generator_data import GeneratorData, OverloadTracker
+from .namespace_utils import generated_qualname, normalize_namespace
 from .context import (
     BaseClassData,
     ClassContext,
@@ -542,6 +543,7 @@ class AutowrapVisitor:
             ctxlist = self.hctx.enums
             var_name = f"enum{len(ctxlist)}"
             enum_scope = user_data
+            enum_namespace = user_data
             scope_var = self._get_module_var(enum_data)
         else:
             # per-class -- ignore private/protected enums
@@ -564,6 +566,7 @@ class AutowrapVisitor:
                 var_name = f"{cls_ctx.var_name}_enum_u{len(ctxlist)}"
 
             enum_scope = cls_ctx.full_cpp_name
+            enum_namespace = cls_ctx.namespace
             scope_var = cls_ctx.var_name
 
         strip_prefixes: typing.List[str] = []
@@ -609,6 +612,7 @@ class AutowrapVisitor:
                 scope_var=scope_var,
                 var_name=var_name,
                 cpp_name=ename,
+                namespace=enum_namespace,
                 full_cpp_name=full_cpp_name,
                 py_name=py_name,
                 values=values,
@@ -1341,8 +1345,14 @@ class AutowrapVisitor:
             if cdata.template_argument_list:
                 tmpl = f", {cdata.template_argument_list}"
 
-            trampoline_cfg = f"{ctx.namespace}::PyTrampolineCfg_{ctx.cpp_name}<{cdata.template_argument_list}>"
-            tname = f"{ctx.namespace}::PyTrampoline_{ctx.cpp_name}<typename {ctx.full_cpp_name}{tmpl}, typename {trampoline_cfg}>"
+            trampoline_cfg = generated_qualname(
+                ctx.namespace,
+                f"PyTrampolineCfg_{ctx.cpp_name}<{cdata.template_argument_list}>",
+            )
+            tname = generated_qualname(
+                ctx.namespace,
+                f"PyTrampoline_{ctx.cpp_name}<typename {ctx.full_cpp_name}{tmpl}, typename {trampoline_cfg}>",
+            )
             tvar = f"{ctx.cpp_name}_Trampoline"
 
             ctx.trampoline = TrampolineData(
@@ -2161,6 +2171,18 @@ class AutowrapVisitor:
         self.hctx.type_caster_includes = sorted(includes)
 
 
+def _find_class_context(
+    classes: typing.Iterable[ClassContext], qualname: str
+) -> typing.Optional[ClassContext]:
+    for cls in classes:
+        if cls.dep_cpp_name.lstrip(":") == qualname:
+            return cls
+        matched = _find_class_context(cls.child_classes, qualname)
+        if matched is not None:
+            return matched
+    return None
+
+
 def parse_header(
     name: str,
     header_path: pathlib.Path,
@@ -2181,6 +2203,7 @@ def parse_header(
         extra_includes=user_cfg.extra_includes,
         inline_code=user_cfg.inline_code,
         rel_fname=relpath_walk_up(header_path, header_root).as_posix(),
+        inline_code_namespace=user_cfg.inline_code_namespace,
     )
 
     # Parse the header using a custom visitor
@@ -2195,38 +2218,55 @@ def parse_header(
     #
 
     for i, (k, tmpl_data) in enumerate(user_cfg.templates.items()):
-        qualname = tmpl_data.qualname
-        if "::" not in qualname:
-            qualname = f"::{qualname}"
-        qualname = qualname.translate(_qualname_trans)
+        qualname_match = tmpl_data.qualname.lstrip(":")
+        header_qualname = qualname_match
+        if "::" not in header_qualname:
+            header_qualname = f"::{header_qualname}"
+        generated_header = f"{header_qualname.translate(_qualname_trans)}.hpp"
 
         doc_add = tmpl_data.doc_append
         if doc_add:
             doc_add = f"\n{doc_add}"
 
+        # Match parser contexts recursively: nested class qualifiers are not
+        # namespaces. For declarations outside this header, users can override
+        # semiwrap's namespace inference when an enclosing qualifier is a class.
+        matched_cctx = _find_class_context(hctx.classes, qualname_match)
+
+        generated_identifier = qualname_match.translate(_qualname_trans)
+        if matched_cctx is not None:
+            namespace = matched_cctx.namespace
+            generated_identifier = matched_cctx.full_cpp_name_identifier
+        elif tmpl_data.namespace is not None:
+            namespace = normalize_namespace(tmpl_data.namespace)
+        else:
+            # For declarations outside this header, retain semiwrap's usual
+            # namespace inference. Users can override it for nested classes.
+            namespace, _, _ = qualname_match.rpartition("::")
+
+        if matched_cctx is None and not namespace:
+            # Global generated binder identifiers retain their leading `::`
+            # marker, including for explicitly configured nested templates.
+            generated_identifier = f"::{qualname_match}".translate(_qualname_trans)
+
         tctx = TemplateInstanceContext(
+            namespace=namespace,
             scope_var=visitor._get_module_var(tmpl_data),
             var_name=f"tmplCls{i}",
             py_name=k,
-            full_cpp_name_identifier=qualname,
-            binder_typename=f"bind_{qualname}_{i}",
+            full_cpp_name_identifier=generated_identifier,
+            binder_typename=f"bind_{generated_identifier}_{i}",
             params=tmpl_data.params,
-            header_name=f"{qualname}.hpp",
+            header_name=generated_header,
             doc_set=visitor._quote_doc(tmpl_data.doc),
             doc_add=visitor._quote_doc(doc_add),
         )
         hctx.template_instances.append(tctx)
 
-        # Ensure that template instances are created in class order if the
-        # template class is in this header file
-        # - not matching here is not an error
-        qualname_match = tmpl_data.qualname.lstrip(":")
-        for cctx in hctx.classes:
-            if cctx.dep_cpp_name.lstrip(":") == qualname_match:
-                assert cctx.template
-                tctx.matched = True
-                cctx.template.instances.append(tctx)
-                break
+        if matched_cctx is not None:
+            assert matched_cctx.template
+            tctx.matched = True
+            matched_cctx.template.instances.append(tctx)
 
         for param in tmpl_data.params:
             if isinstance(param, str):
