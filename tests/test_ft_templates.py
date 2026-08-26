@@ -1,4 +1,5 @@
 from swtest import ft
+from swtest.ft import _ft
 
 
 def test_basic_template():
@@ -8,6 +9,11 @@ def test_basic_template():
     s.setT("string")
     assert s.t == "string"
     assert s.getT() == "string"
+
+
+def test_cross_package_template_binder():
+    value = _ft.RemoteTemplateInt(42)
+    assert value.get() == 42
 
 
 def test_dependent_using():

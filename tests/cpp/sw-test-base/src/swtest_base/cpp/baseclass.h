@@ -12,3 +12,16 @@ public:
     }
 
 };
+
+template <typename T>
+class RemoteTemplate {
+public:
+    RemoteTemplate(T value) : value(value) {}
+
+    T get() const {
+        return value;
+    }
+
+private:
+    T value;
+};

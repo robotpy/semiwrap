@@ -2,3 +2,8 @@ classes:
   RemoteTrampoline:
     methods:
       fn:
+templates:
+  RemoteTemplateInt:
+    qualname: RemoteTemplate
+    params:
+    - int

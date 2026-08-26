@@ -2,3 +2,9 @@ classes:
   abaseclass:
     methods:
       fn:
+  RemoteTemplate:
+    template_params:
+    - T
+    methods:
+      RemoteTemplate:
+      get:
