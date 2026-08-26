@@ -7,6 +7,7 @@ from cxxheaderparser.types import (
     FunctionType,
     FundamentalSpecifier,
     Method,
+    MemberPointer,
     MoveReference,
     NameSpecifier,
     Pointer,
@@ -69,7 +70,7 @@ def _encode_type(dt: DecoratedType, names: typing.List[str]) -> None:
             const = const or t.const
             volatile = volatile or t.volatile
             break
-        elif isinstance(t, Pointer):
+        elif isinstance(t, (MemberPointer, Pointer)):
             ptrs += 1
             const = const or t.const
             volatile = volatile or t.volatile
@@ -89,10 +90,6 @@ def _encode_type(dt: DecoratedType, names: typing.List[str]) -> None:
     if volatile:
         names.append("V")
 
-    if isinstance(t, Array):
-        assert False  # TODO, convert array size?
-        names.append("A" * t.size)
-
     if refs == 1:
         names.append("R")
     elif refs == 2:
@@ -100,6 +97,13 @@ def _encode_type(dt: DecoratedType, names: typing.List[str]) -> None:
 
     if ptrs:
         names.append("P" * ptrs)
+
+    if isinstance(t, Array):
+        # Array extents are intentionally omitted from this best-effort
+        # signature, but the element type must still be encoded.
+        names.append("A")
+        _encode_type(t.array_of, names)
+        return
 
     if isinstance(t, FunctionType):
         # encode like a function but include the return type
