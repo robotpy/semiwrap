@@ -42,6 +42,7 @@ from cxxheaderparser.types import (
     FunctionType,
     FundamentalSpecifier,
     Method,
+    MemberPointer,
     MoveReference,
     NamespaceAlias,
     NameSpecifier,
@@ -53,6 +54,7 @@ from cxxheaderparser.types import (
     TemplateInst,
     TemplateTypeParam,
     Type,
+    TypeId,
     Typedef,
     UsingAlias,
     UsingDecl,
@@ -170,7 +172,7 @@ def _is_prop_readonly(dt: DecoratedType) -> bool:
     while True:
         if isinstance(t, Array):
             return False
-        elif isinstance(t, (FunctionType, MoveReference, Reference)):
+        elif isinstance(t, (FunctionType, MemberPointer, MoveReference, Reference)):
             return False
         elif isinstance(t, Type):
             return not _is_fundamental(t.typename.segments[-1])
@@ -182,13 +184,18 @@ def _is_prop_readonly(dt: DecoratedType) -> bool:
 
 def _count_and_unwrap(
     dt: DecoratedType,
-) -> typing.Tuple[typing.Union[Array, FunctionType, Type], int, int, bool]:
+) -> typing.Tuple[
+    typing.Union[Array, FunctionType, MemberPointer, Type], int, int, bool
+]:
     ptrs = 0
     refs = 0
     const = False
     t: typing.Union[DecoratedType, FunctionType] = dt
     while True:
         if isinstance(t, Type):
+            const = const or t.const
+            return t, ptrs, refs, const
+        elif isinstance(t, MemberPointer):
             const = const or t.const
             return t, ptrs, refs, const
         elif isinstance(t, (Array, FunctionType)):
@@ -1709,10 +1716,19 @@ class AutowrapVisitor:
         if p_const:
             cpp_type = f"const {cpp_type}"
 
-        # TODO: this is weird, why aren't we using .format() here
-        x_type_full = cpp_type
-        x_type_full += "&" * p_reference
-        x_type_full += "*" * p_pointer
+        cpp_decl = None
+        cpp_local_decl = None
+        if isinstance(ptype, MemberPointer) and not param_override.x_type:
+            # Names in complex declarators must occur inside the type. Preserve
+            # the original decorated type instead of rebuilding it with suffixes.
+            x_type_full = p.type.format()
+            cpp_decl = p.type.format_decl(p_name)
+            cpp_local_decl = ptype.format_decl(p_name)
+        else:
+            # TODO: this is weird, why aren't we using .format() here
+            x_type_full = cpp_type
+            x_type_full += "&" * p_reference
+            x_type_full += "*" * p_pointer
 
         return ParamContext(
             arg_name=p_name,
@@ -1726,6 +1742,8 @@ class AutowrapVisitor:
             virtual_call_name=virtual_call_name,
             cpp_retname=cpp_retname,
             category=pcat,
+            cpp_decl=cpp_decl,
+            cpp_local_decl=cpp_local_decl,
         )
 
     def _on_fn_make_lambda(self, data: FunctionData, fctx: FunctionContext):
@@ -1787,12 +1805,13 @@ class AutowrapVisitor:
         if tmp_params:
             for out in reversed(tmp_params):
                 odef = out.default
+                decl = out.cpp_local_decl or f"{out.cpp_type} {out.arg_name}"
                 if not odef:
-                    lambda_pre.insert(0, f"{out.cpp_type} {out.arg_name}{{}}")
+                    lambda_pre.insert(0, f"{decl}{{}}")
                 elif odef.startswith("{"):
-                    lambda_pre.insert(0, f"{out.cpp_type} {out.arg_name}{odef}")
+                    lambda_pre.insert(0, f"{decl}{odef}")
                 else:
-                    lambda_pre.insert(0, f"{out.cpp_type} {out.arg_name} = {odef}")
+                    lambda_pre.insert(0, f"{decl} = {odef}")
 
         pre = f";\n".join(lambda_pre) + ";"
 
@@ -1849,6 +1868,8 @@ class AutowrapVisitor:
                 pctx.call_name = f"({pctx.cpp_type}*){bname}.ptr"
                 pctx.cpp_type = "const py::buffer"
                 pctx.full_cpp_type = "const py::buffer&"
+                pctx.cpp_decl = None
+                pctx.cpp_local_decl = None
 
                 # this doesn't seem to be true for bytearrays, which is silly
                 # x_lambda_pre.append(
@@ -2020,7 +2041,7 @@ class AutowrapVisitor:
         self,
         name: str,
         cpp_type: str,
-        ptype: typing.Union[Array, FunctionType, Type],
+        ptype: typing.Union[Array, FunctionType, MemberPointer, Type],
     ) -> str:
         if name.isnumeric() or name in ("NULL", "nullptr"):
             pass
@@ -2043,11 +2064,13 @@ class AutowrapVisitor:
         return name
 
     def _add_default_arg_cast(
-        self, name: str, ptype: typing.Union[Array, FunctionType, Type]
+        self,
+        name: str,
+        ptype: typing.Union[Array, FunctionType, MemberPointer, Type],
     ) -> str:
         # Adds an explicit cast to a default arg for certain types that have
         # a type caster with an explicit default
-        ntype: typing.Union[Array, FunctionType, Pointer, Type] = ptype
+        ntype: TypeId = ptype
         while isinstance(ntype, Array):
             ntype = ntype.array_of
         if isinstance(ntype, Type):
@@ -2063,7 +2086,7 @@ class AutowrapVisitor:
     # type caster utilities
     #
 
-    def _add_type_caster(self, t: typing.Union[DecoratedType, FunctionType]):
+    def _add_type_caster(self, t: TypeId):
         # pick apart the type and add each to the list of types
         # - it would be nice if we could just add this to a set
         #   and process it later, but that would probably be just
@@ -2079,6 +2102,9 @@ class AutowrapVisitor:
                     self._add_type_caster(p.type)
                 return
 
+            elif isinstance(t, MemberPointer):
+                self._add_type_caster_pqname(t.classname)
+                t = t.ptr_to
             elif isinstance(t, Pointer):
                 t = t.ptr_to
             elif isinstance(t, Reference):

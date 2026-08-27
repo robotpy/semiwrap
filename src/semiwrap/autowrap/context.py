@@ -127,9 +127,17 @@ class ParamContext:
     #: Not used in renderer, used for filtering
     category: ParamCategory
 
+    # Full declarations for types whose name must occur inside the declarator.
+    # ``cpp_local_decl`` omits outer pointer/reference decorators when declaring
+    # temporary storage. Most types can use the renderers' default construction.
+    cpp_decl: typing.Optional[str] = None
+    cpp_local_decl: typing.Optional[str] = None
+
     # type + name, rarely used
     @property
     def decl(self) -> str:
+        if self.cpp_decl is not None:
+            return self.cpp_decl
         return f"{self.full_cpp_type} {self.arg_name}"
 
     # only used for operator generation, rarely used
