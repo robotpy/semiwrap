@@ -2,11 +2,18 @@
 #pragma once
 
 #include "base_qualname_hidden.h"
+#include "baseclass.h"
 
 namespace bq::detail {
 
 struct BaseQualname : public Hidden {
     BaseQualname() = default;
+};
+
+struct NamespacedRemoteTrampoline : public ::abaseclass {
+    inline std::string fn() override {
+        return "NamespacedRemoteTrampoline";
+    }
 };
 
 struct THBaseQualname : THiddenBase1<THiddenBase2<int>> {

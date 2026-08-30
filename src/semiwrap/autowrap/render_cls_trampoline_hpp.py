@@ -1,3 +1,6 @@
+import dataclasses
+import typing
+
 from .buffer import RenderBuffer
 from .context import (
     HeaderContext,
@@ -7,6 +10,7 @@ from .context import (
     TrampolineData,
 )
 from .mangle import trampoline_signature
+from .namespace_utils import generated_qualname, namespace_scope
 
 from . import render_pybind11 as rpybind11
 
@@ -107,9 +111,26 @@ def _render_cls_trampoline(
         for base in cls.bases:
             r.writeln(f"#include <trampolines/{ base.full_cpp_name_identifier }.hpp>")
 
-    if cls.namespace:
-        r.writeln(f"\nnamespace {cls.namespace.strip('::')} {{")
+    r.writeln()
+    with namespace_scope(r, cls.namespace, generated=True):
+        _render_cls_trampoline_scoped(
+            r,
+            hctx,
+            cls,
+            trampoline,
+            template_argument_list,
+            template_parameter_list,
+        )
 
+
+def _render_cls_trampoline_scoped(
+    r: RenderBuffer,
+    hctx: HeaderContext,
+    cls: ClassContext,
+    trampoline: TrampolineData,
+    template_argument_list: str,
+    template_parameter_list: str,
+):
     if hctx.using_declarations:
         r.writeln()
         for decl in hctx.using_declarations:
@@ -134,9 +155,10 @@ def _render_cls_trampoline(
 
         with r.indent():
             for base in cls.bases:
-                r.writeln(
-                    f"{base.namespace_}PyTrampolineCfg_{base.cls_name}<{postcomma(base.template_params)}"
+                base_cfg = "::" + generated_qualname(
+                    base.namespace_, f"PyTrampolineCfg_{base.cls_name}"
                 )
+                r.writeln(f"{base_cfg}<{postcomma(base.template_params)}")
 
             r.writeln("CfgBase")
 
@@ -172,7 +194,10 @@ def _render_cls_trampoline(
 
         for base in cls.bases:
             r.rel_indent(2)
-            r.writeln(f"{base.namespace_}PyTrampoline_{base.cls_name}<")
+            base_trampoline = "::" + generated_qualname(
+                base.namespace_, f"PyTrampoline_{base.cls_name}"
+            )
+            r.writeln(f"{base_trampoline}<")
 
         with r.indent():
             r.writeln("PyTrampolineBase")
@@ -288,10 +313,7 @@ def _render_cls_trampoline(
             r.writeln()
             r.write_trim(trampoline.inline_code)
 
-    r.writeln("};\n\n")
-
-    if cls.namespace:
-        r.writeln(f"}}; // namespace {cls.namespace}")
+    r.writeln("};\n")
 
 
 def _render_cls_trampoline_virtual_method(
@@ -364,6 +386,23 @@ def _render_cls_trampoline_virtual_method(
     r.writeln("#endif")
 
 
+def _render_template_qualname(cls: ClassContext) -> str:
+    if cls.parent is None:
+        return cls.full_cpp_name
+
+    cpp_name = cls.cpp_name
+    if cls.template is not None:
+        cpp_name = f"{cpp_name}<{cls.template.argument_list}>"
+        parent: typing.Optional[ClassContext] = cls.parent
+        while parent is not None:
+            if parent.template is not None:
+                cpp_name = f"template {cpp_name}"
+                break
+            parent = parent.parent
+
+    return f"{_render_template_qualname(cls.parent)}::{cpp_name}"
+
+
 def _render_cls_template_impl(
     r: RenderBuffer, hctx: HeaderContext, cls: ClassContext, template: ClassTemplateData
 ):
@@ -372,17 +411,32 @@ def _render_cls_template_impl(
         for inc in hctx.type_caster_includes:
             r.writeln(f"#include <{inc}>")
 
-    r.writeln("\nnamespace swgen {")
+    r.writeln()
+    with namespace_scope(r, cls.namespace, generated=True):
+        render_cls = dataclasses.replace(
+            cls, full_cpp_name=_render_template_qualname(cls)
+        )
+        _render_cls_template_impl_scoped(r, hctx, render_cls, template)
 
-    if cls.namespace:
-        r.writeln(f"\nusing namespace {cls.namespace};")
 
+def _render_cls_template_impl_scoped(
+    r: RenderBuffer, hctx: HeaderContext, cls: ClassContext, template: ClassTemplateData
+):
     if hctx.using_declarations:
         r.writeln()
         for decl in hctx.using_declarations:
             r.writeln(f"using {decl.format()};")
 
-    r.writeln(f"\ntemplate <{template.parameter_list}>")
+    template_parameters = []
+    parent = cls.parent
+    while parent is not None:
+        if parent.template is not None:
+            template_parameters.append(parent.template.parameter_list)
+        parent = parent.parent
+    template_parameters.reverse()
+    template_parameters.append(template.parameter_list)
+
+    r.writeln(f"\ntemplate <{', '.join(template_parameters)}>")
     r.writeln(f"struct bind_{cls.full_cpp_name_identifier} {{")
 
     with r.indent():
@@ -399,8 +453,9 @@ def _render_cls_template_impl(
 
         with r.indent():
 
-            # TODO: embedded structs will fail here
-            rpybind11.cls_init(r, cls, "clsName")
+            # A configured template instance is registered in its configured
+            # module/subpackage, even when its C++ declaration is a nested class.
+            rpybind11.cls_init(r, cls, "clsName", "m")
             r.writeln("m(m),")
             r.writeln("clsName(clsName) {")
 
@@ -433,10 +488,4 @@ def _render_cls_template_impl(
 
         r.writeln("}")
 
-    r.write_trim(
-        f"""
-        }}; // struct bind_{cls.full_cpp_name_identifier}
-
-        }}; // namespace swgen
-        """
-    )
+    r.writeln(f"}}; // struct bind_{cls.full_cpp_name_identifier}")

@@ -17,8 +17,41 @@ classes:
           });
       }
 
+  LocalOuter:
+  LocalOuter::Inner:
+    template_params:
+    - T
+    methods:
+      Inner:
+      get:
+    attributes:
+      value:
+
+  TemplatedOuter:
+    template_params:
+    - T
+  TemplatedOuter::Inner:
+    template_params:
+    - U
+    methods:
+      Inner:
+      getOuter:
+      getInner:
+    attributes:
+      outer:
+      inner:
+
 templates:
   TOuter:
     qualname: Outer
     params:
     - int
+  LocalNestedInt:
+    qualname: LocalOuter::Inner
+    params:
+    - int
+  NestedTemplateIntDouble:
+    qualname: TemplatedOuter::Inner
+    params:
+    - int
+    - double

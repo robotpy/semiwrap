@@ -1,9 +1,18 @@
 functions:
   sp_func:
     subpackage: subpkg
+enums:
+  SPEnum:
+    subpackage: subpkg
+    inline_code: |
+      ;
+      m.attr("enum_inline_code_module_name") = m.attr("__name__")
 classes:
   SPClass:
     subpackage: subpkg
+    inline_code: |
+      ;
+      m.attr("class_inline_code_module_name") = m.attr("__name__")
 
   SPTemplate:
     template_params:

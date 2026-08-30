@@ -131,9 +131,17 @@ def test_inline_code():
     assert o.get4() == 4
 
 
+def test_class_enum_inline_code_has_module():
+    assert ft._ft.class_enum_inline_code_module_name == "swtest.ft._ft"
+
+
 def test_cpp_code_with_constant():
     o = ft.InlineCode()
     assert o.cpp_code_with_constant() == 4
+
+
+def test_header_inline_code_uses_class_alias_template_and_constant():
+    assert ft._ft.header_inline_alias_constant() == 8
 
 
 #
@@ -143,6 +151,14 @@ def test_cpp_code_with_constant():
 
 def test_ns_class():
     assert ft._ft.NSClass().getN() == 4
+
+
+def test_inline_code_infers_single_target_namespace():
+    assert ft._ft.ns_inline_code() == 4
+
+
+def test_inline_code_uses_explicit_target_namespace():
+    assert ft._ft.explicit_inline_code_namespace() is True
 
 
 #

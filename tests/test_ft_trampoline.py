@@ -1,10 +1,16 @@
 from swtest_base._module import abaseclass
-from swtest.ft._ft import ClassWithTrampoline, ConstexprTrampoline, RemoteTrampoline
+from swtest.ft._ft import (
+    ClassWithTrampoline,
+    ConstexprTrampoline,
+    NamespacedRemoteTrampoline,
+    RemoteTrampoline,
+)
 
 
 def test_class_with_trampoline():
     c = ClassWithTrampoline()
     assert c.get42() == 42
+    assert c.get43() == 43
 
     assert c.fnWithMoveOnlyParam(4) == 4
     assert ClassWithTrampoline.check_moveonly(c) == 7
@@ -39,4 +45,10 @@ def test_remote_trampoline():
     r = RemoteTrampoline()
     assert r.fn() == "RemoteTrampoline"
 
+    assert isinstance(r, abaseclass)
+
+
+def test_namespaced_remote_trampoline_with_global_base():
+    r = NamespacedRemoteTrampoline()
+    assert r.fn() == "NamespacedRemoteTrampoline"
     assert isinstance(r, abaseclass)

@@ -23,6 +23,10 @@ inline void fn_using(std::string t) {}
 
 }
 
+// Collides with relative lookup of the unrelated top-level namespace u from
+// generated code nested in cr::inner.
+namespace cr::inner::u {}
+
 // used in using2.h
 namespace u {
 

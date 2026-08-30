@@ -18,8 +18,6 @@ classes:
           PType:
           float:
   u::u2::Using3:
-    typealias:
-    - template <typename T> using fancy_list = u::fancy_list<T>
     methods:
       Using3:
   u::u2::Using4:

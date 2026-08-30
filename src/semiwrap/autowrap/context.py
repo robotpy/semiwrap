@@ -18,6 +18,7 @@ import typing
 from cxxheaderparser.types import Function, PQName
 
 from ..config.autowrap_yml import ReturnValuePolicy
+from .namespace_utils import generated_qualname
 
 
 Documentation = typing.Optional[typing.List[str]]
@@ -65,6 +66,9 @@ class EnumContext:
 
     #: C++ name without namespace
     cpp_name: str
+
+    #: Namespace that this enum lives in
+    namespace: str
 
     #: C++ name, including namespace/classname
     full_cpp_name: str
@@ -509,6 +513,9 @@ class ClassContext:
 
 @dataclass
 class TemplateInstanceContext:
+    #: Namespace that this template instance lives in
+    namespace: str
+
     #: Name of parent variable in initializer
     scope_var: str
 
@@ -529,6 +536,10 @@ class TemplateInstanceContext:
 
     #: If true, instantiated in class order
     matched: bool = False
+
+    @property
+    def binder_full_cpp_name(self) -> str:
+        return generated_qualname(self.namespace, self.binder_typename)
 
 
 @dataclass
@@ -590,3 +601,6 @@ class HeaderContext:
     class_hierarchy: typing.Dict[str, typing.List[str]] = field(default_factory=dict)
 
     has_vcheck: bool = False
+
+    #: Resolved namespace for header-level inline code
+    inline_code_namespace: typing.Optional[str] = None

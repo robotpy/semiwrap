@@ -46,3 +46,11 @@ inline_code: |
   cls_ClassWithTrampoline
     .def("get42", [](ClassWithTrampoline_Trampoline * self) { return self->get42(); })
   ;
+  [this]() {
+    cls_ClassWithTrampoline
+      .def("get43", [](ClassWithTrampoline_Trampoline * self) { return self->get42() + 1; })
+    ;
+  }();
+  int cls_ConstexprTrampoline = 0;
+  int cls_ChildConstexprTrampoline_suffix = cls_ConstexprTrampoline;
+  (void)cls_ChildConstexprTrampoline_suffix;

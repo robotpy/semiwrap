@@ -2,3 +2,16 @@ classes:
   abaseclass:
     methods:
       fn:
+  RemoteTemplate:
+    template_params:
+    - T
+    methods:
+      RemoteTemplate:
+      get:
+  provider_nested::Outer:
+  provider_nested::Outer::Inner:
+    template_params:
+    - T
+    methods:
+      Inner:
+      get:

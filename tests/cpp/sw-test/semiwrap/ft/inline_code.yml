@@ -1,11 +1,14 @@
 classes:
   InlineCode:
+    typealias:
+    - template <typename T> using HeaderInlineAlias = std::integral_constant<T, NS::inner::KONSTANT>
     constants:
     - NS::inner::KONSTANT
     enums:
       MyE:
         inline_code: |
-          .value("Value2", (InlineCode::MyE)2)
+          .value("Value2", (InlineCode::MyE)2);
+          m.attr("class_enum_inline_code_module_name") = m.attr("__name__")
     methods:
       get2:
       cpp_code_with_constant:
@@ -18,3 +21,9 @@ classes:
       .def("get4", [](InlineCode *self) {
         return 4;
       })
+
+inline_code: |
+  using HeaderInlineAliasInt = HeaderInlineAlias<int>;
+  m.def("header_inline_alias_constant", []() {
+    return HeaderInlineAliasInt::value + KONSTANT;
+  });

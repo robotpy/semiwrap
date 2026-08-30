@@ -1,4 +1,5 @@
 from swtest import ft
+from swtest.ft import _ft
 
 
 def test_basic_template():
@@ -8,6 +9,16 @@ def test_basic_template():
     s.setT("string")
     assert s.t == "string"
     assert s.getT() == "string"
+
+
+def test_cross_package_template_binder():
+    value = _ft.RemoteTemplateInt(42)
+    assert value.get() == 42
+
+
+def test_cross_package_nested_template_binder():
+    value = _ft.ProviderNestedInt(43)
+    assert value.get() == 43
 
 
 def test_dependent_using():
@@ -31,6 +42,22 @@ def test_nested_template():
     assert type(i.t) == int
 
     assert repr(i) == "TOuter.Inner()"
+
+
+def test_local_nested_template_binder():
+    value = _ft.LocalNestedInt(44)
+    assert value.get() == 44
+
+
+def test_nested_template_beneath_templated_class():
+    value = _ft.NestedTemplateIntDouble(45, 4.5)
+    assert value.outer == 45
+    assert value.inner == 4.5
+
+    value.outer = 46
+    value.inner = 5.5
+    assert value.getOuter() == 46
+    assert value.getInner() == 5.5
 
 
 def test_numeric():
