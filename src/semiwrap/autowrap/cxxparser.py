@@ -88,6 +88,7 @@ from .context import (
     FnTemplateImpl,
     FunctionContext,
     GeneratedLambda,
+    GeneratedTypeAlias,
     HeaderContext,
     ParamCategory,
     ParamContext,
@@ -549,7 +550,10 @@ class AutowrapVisitor:
         ):
             ctx = state.user_data.ctx
             ctx.auto_typealias.append(
-                f"using {using.alias} [[maybe_unused]] = typename {ctx.full_cpp_name}::{using.alias}"
+                GeneratedTypeAlias(
+                    f"using {using.alias} [[maybe_unused]] = typename "
+                    f"{ctx.full_cpp_name}::{using.alias}"
+                )
             )
 
     def on_using_declaration(self, state: AWState, using: UsingDecl) -> None:
@@ -1132,7 +1136,11 @@ class AutowrapVisitor:
         if f.access == "public" and f.constexpr:
             cctx = state.user_data.ctx
             cctx.auto_typealias.append(
-                f"static constexpr auto {prop_name} [[maybe_unused]] = {cctx.full_cpp_name}::{prop_name}"
+                GeneratedTypeAlias(
+                    f"static constexpr auto {prop_name} [[maybe_unused]] = "
+                    f"{cctx.full_cpp_name}::{prop_name}",
+                    deprecated=deprecation is not None,
+                )
             )
 
     def on_class_method(self, state: AWClassBlockState, method: Method) -> None:
@@ -2353,6 +2361,7 @@ def parse_header(
             header_name=generated_header,
             doc_set=visitor._quote_doc(tmpl_data.doc),
             doc_add=visitor._quote_doc(doc_add),
+            deprecated=matched_cctx.deprecated if matched_cctx is not None else False,
         )
         hctx.template_instances.append(tctx)
 

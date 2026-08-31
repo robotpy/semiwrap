@@ -160,6 +160,12 @@ class ParamContext:
 
 
 @dataclass
+class GeneratedTypeAlias:
+    declaration: str
+    deprecated: bool = False
+
+
+@dataclass
 class GeneratedLambda:
     """
     Data for generating a lambda to change the behavior of the function
@@ -515,7 +521,7 @@ class ClassContext:
     unnamed_enums: typing.List[EnumContext] = field(default_factory=list)
 
     #: Extra autodetected 'using' directives
-    auto_typealias: typing.List[str] = field(default_factory=list)
+    auto_typealias: typing.List[GeneratedTypeAlias] = field(default_factory=list)
 
     #: vcheck are various static asserts that check things about the
     #: inline functions
@@ -546,6 +552,9 @@ class TemplateInstanceContext:
 
     doc_set: Documentation
     doc_add: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool = False
 
     #: If true, instantiated in class order
     matched: bool = False

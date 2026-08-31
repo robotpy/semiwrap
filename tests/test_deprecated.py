@@ -5,6 +5,11 @@ from cxxheaderparser.options import ParserOptions
 
 from semiwrap.autowrap.cxxparser import parse_header
 from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.autowrap.render_cls_trampoline_hpp import render_cls_trampoline_hpp
+from semiwrap.autowrap.render_tmpl_inst import (
+    render_template_inst_cpp,
+    render_template_inst_hpp,
+)
 from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
 from semiwrap.config.autowrap_yml import (
     AutowrapConfigYaml,
@@ -12,6 +17,7 @@ from semiwrap.config.autowrap_yml import (
     EnumData,
     FunctionData,
     PropData,
+    TemplateData,
 )
 
 
@@ -151,6 +157,279 @@ struct Widget {
     assert rendered.count("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN") == rendered.count(
         "SEMIWRAP_SUPPRESS_DEPRECATED_END"
     )
+
+
+def test_render_suppresses_deprecated_class_and_generated_constexpr_alias(tmp_path):
+    source = r"""
+class [[deprecated("Use CurrentWidget.")]] OldWidget {
+public:
+    OldWidget();
+    void old_widget_method();
+    int old_widget_field;
+    static constexpr int OldWidgetConstant = 1;
+    enum {
+        OldWidgetUnnamed,
+    };
+};
+"""
+    config = AutowrapConfigYaml(
+        classes={
+            "OldWidget": ClassData(
+                methods={
+                    "OldWidget": FunctionData(),
+                    "old_widget_method": FunctionData(),
+                },
+                attributes={
+                    "old_widget_field": PropData(),
+                    "OldWidgetConstant": PropData(),
+                },
+                inline_code="/* OLD_WIDGET_INLINE_MARKER */",
+            )
+        }
+    )
+
+    rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+
+    assert_rendered_suppression(rendered, "py::class_<typename ::OldWidget", True)
+    assert_rendered_suppression(rendered, "cls_OldWidget.def(py::init<>()", True)
+    assert_rendered_suppression(rendered, 'cls_OldWidget.def("old_widget_method"', True)
+    assert_rendered_suppression(
+        rendered, 'cls_OldWidget.def_readwrite("old_widget_field"', True
+    )
+    assert_rendered_suppression(
+        rendered,
+        "static constexpr auto OldWidgetConstant [[maybe_unused]] = "
+        "::OldWidget::OldWidgetConstant",
+        True,
+    )
+    assert_rendered_suppression(
+        rendered, 'cls_OldWidget.attr("OldWidgetUnnamed")', True
+    )
+    assert_rendered_suppression(rendered, "OLD_WIDGET_INLINE_MARKER", False)
+
+
+def test_render_suppresses_only_deprecated_nested_classes_and_enums(tmp_path):
+    source = r"""
+struct Parent {
+    struct [[deprecated("Use CurrentChild.")]] OldChild {
+        void old_child_method();
+        static constexpr int OldChildConstant = 1;
+    };
+    struct CurrentChild {
+        void current_child_method();
+        static constexpr int CurrentChildConstant = 2;
+    };
+
+    enum class [[deprecated("Use CurrentNestedEnum.")]] OldNestedEnum {
+        OldNestedValue,
+    };
+    enum class CurrentNestedEnum {
+        CurrentNestedValue,
+    };
+};
+"""
+    config = AutowrapConfigYaml(
+        classes={
+            "Parent": ClassData(
+                enums={
+                    "OldNestedEnum": EnumData(),
+                    "CurrentNestedEnum": EnumData(),
+                }
+            ),
+            "Parent::OldChild": ClassData(
+                methods={"old_child_method": FunctionData()},
+                attributes={"OldChildConstant": PropData()},
+            ),
+            "Parent::CurrentChild": ClassData(
+                methods={"current_child_method": FunctionData()},
+                attributes={"CurrentChildConstant": PropData()},
+            ),
+        }
+    )
+
+    rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+
+    assert_rendered_suppression(rendered, "py::class_<typename ::Parent,", False)
+    assert_rendered_suppression(
+        rendered, "py::class_<typename ::Parent::OldChild,", True
+    )
+    assert_rendered_suppression(
+        rendered, "py::class_<typename ::Parent::CurrentChild,", False
+    )
+    assert_rendered_suppression(rendered, 'cls_OldChild.def("old_child_method"', True)
+    assert_rendered_suppression(
+        rendered, 'cls_CurrentChild.def("current_child_method"', False
+    )
+    assert_rendered_suppression(
+        rendered,
+        "using OldChild [[maybe_unused]] = typename ::Parent::OldChild",
+        True,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "using CurrentChild [[maybe_unused]] = typename ::Parent::CurrentChild",
+        False,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "static constexpr auto OldChildConstant [[maybe_unused]] = "
+        "::Parent::OldChild::OldChildConstant",
+        True,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "static constexpr auto CurrentChildConstant [[maybe_unused]] = "
+        "::Parent::CurrentChild::CurrentChildConstant",
+        False,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "py::enum_<::Parent::OldNestedEnum> cls_Parent_enum1",
+        True,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "py::enum_<::Parent::CurrentNestedEnum> cls_Parent_enum2",
+        False,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "using OldNestedEnum [[maybe_unused]] = typename ::Parent::OldNestedEnum",
+        True,
+    )
+    assert_rendered_suppression(
+        rendered,
+        "using CurrentNestedEnum [[maybe_unused]] = typename ::Parent::CurrentNestedEnum",
+        False,
+    )
+
+
+def test_trampoline_suppresses_deprecated_class_and_method_references(tmp_path):
+    source = r"""
+class [[deprecated("Use CurrentVirtual.")]] OldVirtual {
+public:
+    virtual int public_old_virtual();
+protected:
+    OldVirtual(int value);
+    virtual int protected_old_virtual();
+    void old_protected_method();
+    int old_protected_property;
+};
+
+class CurrentVirtual {
+public:
+    [[deprecated("Use current_virtual().")]] virtual int old_virtual();
+    virtual int current_virtual();
+};
+"""
+    config = AutowrapConfigYaml(
+        classes={
+            "OldVirtual": ClassData(
+                methods={
+                    "OldVirtual": FunctionData(),
+                    "public_old_virtual": FunctionData(),
+                    "protected_old_virtual": FunctionData(),
+                    "old_protected_method": FunctionData(),
+                },
+                attributes={"old_protected_property": PropData()},
+                trampoline_inline_code="/* OLD_TRAMPOLINE_INLINE_MARKER */",
+            ),
+            "CurrentVirtual": ClassData(
+                methods={
+                    "old_virtual": FunctionData(
+                        cpp_code="[](CurrentVirtual *) -> int { return 1; }"
+                    ),
+                    "current_virtual": FunctionData(),
+                }
+            ),
+        }
+    )
+    hctx = parse_deprecated_header(tmp_path, source, config)
+    classes = {cls.cpp_name: cls for cls in hctx.classes}
+
+    old_rendered = render_cls_trampoline_hpp(hctx, classes["OldVirtual"])
+    assert_rendered_suppression(old_rendered, "using Base = ::OldVirtual;", True)
+    assert_rendered_suppression(
+        old_rendered,
+        "struct PyTrampoline_OldVirtual : PyTrampolineBase",
+        True,
+    )
+    assert_rendered_suppression(
+        old_rendered, "PyTrampoline_OldVirtual(int value) :", True
+    )
+    assert_rendered_suppression(
+        old_rendered, "return CxxCallBase::protected_old_virtual()", True
+    )
+    assert_rendered_suppression(
+        old_rendered, "using ::OldVirtual::old_protected_method;", True
+    )
+    assert_rendered_suppression(
+        old_rendered, "using ::OldVirtual::old_protected_property;", True
+    )
+    assert_rendered_suppression(old_rendered, "OLD_TRAMPOLINE_INLINE_MARKER", False)
+
+    current_rendered = render_cls_trampoline_hpp(hctx, classes["CurrentVirtual"])
+    assert_rendered_suppression(
+        current_rendered, "return CxxCallBase::old_virtual()", True
+    )
+    assert_rendered_suppression(
+        current_rendered, "return CxxCallBase::current_virtual()", False
+    )
+
+    wrapped = render_wrapped_cpp(hctx)
+    assert_rendered_suppression(
+        wrapped,
+        "auto vcheck = [](CurrentVirtual *) -> int { return 1; };",
+        True,
+    )
+
+
+def test_deprecated_class_template_suppresses_generated_binder_references(tmp_path):
+    source = r"""
+template <typename T>
+struct [[deprecated("Use CurrentTemplate.")]] OldTemplate {
+    T get();
+};
+"""
+    config = AutowrapConfigYaml(
+        classes={
+            "OldTemplate": ClassData(
+                template_params=["T"],
+                methods={"get": FunctionData()},
+                inline_code="/* OLD_TEMPLATE_CLASS_INLINE_MARKER */",
+                template_inline_code="/* OLD_TEMPLATE_INLINE_MARKER */",
+            )
+        },
+        templates={
+            "OldTemplateInt": TemplateData(qualname="OldTemplate", params=["int"])
+        },
+    )
+    hctx = parse_deprecated_header(tmp_path, source, config)
+    tmpl_data = hctx.template_instances[0]
+
+    binder = render_cls_trampoline_hpp(hctx, hctx.classes[0])
+    assert_rendered_suppression(binder, "py::class_<typename ::OldTemplate<T>", True)
+    assert_rendered_suppression(binder, 'cls_OldTemplate.def("get"', True)
+    assert_rendered_suppression(binder, "OLD_TEMPLATE_CLASS_INLINE_MARKER", False)
+    assert_rendered_suppression(binder, "OLD_TEMPLATE_INLINE_MARKER", False)
+
+    inst_hpp = render_template_inst_hpp(hctx)
+    assert_rendered_suppression(inst_hpp, f"struct {tmpl_data.binder_typename}", True)
+
+    inst_cpp = render_template_inst_cpp(hctx, tmpl_data)
+    assert_rendered_suppression(inst_cpp, "using BindType =", True)
+    assert_rendered_suppression(inst_cpp, "inst = std::make_unique<BindType>", True)
+    assert_rendered_suppression(inst_cpp, "inst->finish(set_doc, add_doc);", True)
+    assert_rendered_suppression(inst_cpp, "inst.reset();", True)
+
+    wrapped = render_wrapped_cpp(hctx)
+    assert_rendered_suppression(
+        wrapped, f"::{tmpl_data.binder_full_cpp_name} {tmpl_data.var_name};", True
+    )
+    assert_rendered_suppression(
+        wrapped, f'{tmpl_data.var_name}(m, "OldTemplateInt"),', True
+    )
+    assert_rendered_suppression(wrapped, f"{tmpl_data.var_name}.finish(", True)
 
 
 def test_parses_supported_deprecated_function_attributes(tmp_path):
