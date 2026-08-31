@@ -8,7 +8,11 @@
     return 2;
 }
 
-/** Use current_documented_function(). */
+/**
+ * Legacy documented function.
+ *
+ * .. warning::<br>   Deprecated: Use current_documented_function().
+ */
 [[deprecated("Use current_documented_function().")]] inline int deprecated_documented_function() {
     return 3;
 }

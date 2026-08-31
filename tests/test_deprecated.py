@@ -443,6 +443,28 @@ struct Widget {
     assert "cls_Widget.def(py::self == py::self" not in rendered
 
 
+def test_render_preserves_custom_cpp_code_for_deprecated_operator(tmp_path):
+    source = r"""
+struct [[deprecated("Use CurrentWidget.")]] Widget {
+    bool operator==(const Widget &other) const;
+};
+"""
+    config = AutowrapConfigYaml(
+        classes={
+            "Widget": ClassData(
+                methods={
+                    "operator==": FunctionData(cpp_code="py::self != py::self"),
+                }
+            )
+        }
+    )
+
+    rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+
+    assert_rendered_suppression(rendered, "cls_Widget.def(py::self != py::self", True)
+    assert 'cls_Widget.def("__eq__", [](' not in rendered
+
+
 def test_deprecated_class_template_suppresses_generated_binder_references(tmp_path):
     source = r"""
 template <typename T>

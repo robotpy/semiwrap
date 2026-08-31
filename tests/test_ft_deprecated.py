@@ -22,6 +22,8 @@ def test_deprecated_free_function_docs_and_calls():
 
     assert module.deprecated_documented_function() == 3
     documented_doc = inspect.getdoc(module.deprecated_documented_function)
+    documented_warning = warning("Use current_documented_function().")
+    assert documented_warning in documented_doc
     assert documented_doc.count("Use current_documented_function().") == 1
 
 

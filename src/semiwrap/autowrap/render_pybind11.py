@@ -92,7 +92,7 @@ def _genmethod_impl(
         r.rel_indent(2)
 
     if fn.operator:
-        if avoid_deprecated_pybind_instantiation:
+        if avoid_deprecated_pybind_instantiation and fn.generated_operator_cpp_code:
             assert cls_qualname is not None
             lam_params = [
                 f"{'const ' if fn.const else ''}{cls_qualname} &self",

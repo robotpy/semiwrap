@@ -277,6 +277,9 @@ class FunctionContext:
 
     genlambda: typing.Optional[GeneratedLambda] = None
 
+    #: True when cpp_code contains semiwrap-generated py::self operator code
+    generated_operator_cpp_code: bool = False
+
     #: Is this a constructor?
     is_constructor: bool = False
 

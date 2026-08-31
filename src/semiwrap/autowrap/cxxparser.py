@@ -1241,6 +1241,7 @@ class AutowrapVisitor:
 
             # Use cpp_code to setup the operator
             if fctx.cpp_code is None:
+                fctx.generated_operator_cpp_code = True
                 if len(method.parameters) == 0:
                     fctx.cpp_code = f"{operator} py::self"
                 else:
