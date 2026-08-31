@@ -135,6 +135,11 @@ struct Widget {
     )
 
     assert_rendered_suppression(rendered, "py::enum_<::OldGlobalEnum> value;", True)
+    assert_rendered_suppression(
+        rendered,
+        'value.value("OldGlobalValue", ::OldGlobalEnum::OldGlobalValue);',
+        True,
+    )
     assert_rendered_suppression(rendered, '.value("OldGlobalValue"', True)
     assert_rendered_suppression(rendered, '.value("CurrentGlobalValue"', True)
     assert_rendered_suppression(rendered, "py::enum_<::MixedGlobalEnum> value;", False)
@@ -157,6 +162,28 @@ struct Widget {
     assert rendered.count("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN") == rendered.count(
         "SEMIWRAP_SUPPRESS_DEPRECATED_END"
     )
+
+
+def test_enum_suppression_preserves_inline_code_statement_termination(tmp_path):
+    source = r"""
+enum class [[deprecated("Use CurrentEnum.")]] OldEnum {
+    Value,
+};
+"""
+    config = AutowrapConfigYaml(
+        enums={
+            "OldEnum": EnumData(
+                inline_code=(
+                    '.value("Alias", ::OldEnum::Value);\n'
+                    'm.attr("enum_marker") = py::none()'
+                )
+            )
+        }
+    )
+
+    rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+
+    assert 'm.attr("enum_marker") = py::none()\n    ;' in rendered
 
 
 def test_render_suppresses_deprecated_class_and_generated_constexpr_alias(tmp_path):
@@ -191,7 +218,8 @@ public:
     rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
 
     assert_rendered_suppression(rendered, "py::class_<typename ::OldWidget", True)
-    assert_rendered_suppression(rendered, "cls_OldWidget.def(py::init<>()", True)
+    assert_rendered_suppression(rendered, "return new ::OldWidget()", True)
+    assert "cls_OldWidget.def(py::init<>()" not in rendered
     assert_rendered_suppression(rendered, 'cls_OldWidget.def("old_widget_method"', True)
     assert_rendered_suppression(
         rendered, 'cls_OldWidget.def_readwrite("old_widget_field"', True
@@ -384,6 +412,37 @@ public:
     )
 
 
+def test_render_uses_local_callables_for_deprecated_constructor_and_operator(tmp_path):
+    source = r"""
+struct Widget {
+    [[deprecated("Use create().")]] Widget();
+    [[deprecated("Use is_same().")]] bool operator==(const Widget &other) const;
+};
+"""
+    config = AutowrapConfigYaml(
+        classes={
+            "Widget": ClassData(
+                methods={
+                    "Widget": FunctionData(),
+                    "operator==": FunctionData(),
+                }
+            )
+        }
+    )
+
+    rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+
+    assert_rendered_suppression(rendered, "return new ::Widget()", True)
+    assert_rendered_suppression(
+        rendered,
+        'cls_Widget.def("__eq__", [](const ::Widget &self',
+        True,
+    )
+    assert_rendered_suppression(rendered, "return self ==", True)
+    assert "cls_Widget.def(py::init<>()" not in rendered
+    assert "cls_Widget.def(py::self == py::self" not in rendered
+
+
 def test_deprecated_class_template_suppresses_generated_binder_references(tmp_path):
     source = r"""
 template <typename T>
@@ -423,6 +482,10 @@ struct [[deprecated("Use CurrentTemplate.")]] OldTemplate {
     assert_rendered_suppression(inst_cpp, "inst.reset();", True)
 
     wrapped = render_wrapped_cpp(hctx)
+    assert (
+        "SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN\n"
+        "  semiwrap_deprecated_initializer(py::module &m) :" in wrapped
+    )
     assert_rendered_suppression(
         wrapped, f"::{tmpl_data.binder_full_cpp_name} {tmpl_data.var_name};", True
     )

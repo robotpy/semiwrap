@@ -13,6 +13,32 @@ from .context import (
 from .render_deprecated import suppress_deprecated
 
 
+_OPERATOR_PY_NAMES = {
+    "-": "__sub__",
+    "+": "__add__",
+    "*": "__mul__",
+    "/": "__truediv__",
+    "%": "__mod__",
+    "&": "__and__",
+    "^": "__xor__",
+    "==": "__eq__",
+    "!=": "__ne__",
+    "|": "__or__",
+    ">": "__gt__",
+    ">=": "__ge__",
+    "<": "__lt__",
+    "<=": "__le__",
+    "+=": "__iadd__",
+    "-=": "__isub__",
+    "*=": "__imul__",
+    "/=": "__itruediv__",
+    "%=": "__imod__",
+    "&=": "__iand__",
+    "^=": "__ixor__",
+    "|=": "__ior__",
+}
+
+
 def mkdoc(pre: str, doc: Documentation, post: str) -> str:
     if doc:
         if len(doc) == 1:
@@ -52,6 +78,7 @@ def _genmethod_impl(
     fn: FunctionContext,
     trampoline_qualname: T.Optional[str],
     tmpl: str,
+    avoid_deprecated_pybind_instantiation: bool,
 ):
     qualname = cls_qualname
     arg_params = fn.filtered_params
@@ -65,7 +92,30 @@ def _genmethod_impl(
         r.rel_indent(2)
 
     if fn.operator:
-        r.writeln(f"{varname}.def({fn.cpp_code}")
+        if avoid_deprecated_pybind_instantiation:
+            assert cls_qualname is not None
+            lam_params = [
+                f"{'const ' if fn.const else ''}{cls_qualname} &self",
+                *(param.decl for param in arg_params),
+            ]
+            if arg_params:
+                expression = f"self {fn.operator} {arg_params[0].call_name}"
+            else:
+                expression = f"{fn.operator}self"
+            py_name = (
+                {"-": "__neg__", "+": "__pos__"}.get(fn.operator)
+                if not arg_params
+                else _OPERATOR_PY_NAMES[fn.operator]
+            )
+            r.writeln(
+                f'{varname}.def("{py_name}", '
+                f"[]({', '.join(lam_params)}) -> decltype(auto) {{"
+            )
+            with r.indent():
+                r.writeln(f"return {expression};")
+            r.writeln("}, py::is_operator()")
+        else:
+            r.writeln(f"{varname}.def({fn.cpp_code}")
         arg_params = []
     elif fn.is_constructor:
         if fn.cpp_code:
@@ -86,6 +136,15 @@ def _genmethod_impl(
                 f'{varname}.def_static("{fn.py_name}"',
                 lam_params,
             )
+        elif avoid_deprecated_pybind_instantiation:
+            assert cls_qualname is not None
+            constructor_qualname = trampoline_qualname or cls_qualname
+            constructor_params = ", ".join(param.decl for param in arg_params)
+            call_params = ", ".join(param.call_name for param in arg_params)
+            r.writeln(f"{varname}.def(py::init([]({constructor_params}) {{")
+            with r.indent():
+                r.writeln(f"return new {constructor_qualname}({call_params});")
+            r.writeln("})")
         elif trampoline_qualname:
             r.writeln(
                 f"{varname}.def(py::init_alias<{', '.join(param.full_cpp_type for param in arg_params)}>()"
@@ -196,8 +255,17 @@ def _genmethod(
     tmpl: str,
     force_suppress_deprecated: bool = False,
 ):
-    with suppress_deprecated(r, fn.deprecated or force_suppress_deprecated):
-        _genmethod_impl(r, varname, cls_qualname, fn, trampoline_qualname, tmpl)
+    deprecated = fn.deprecated or force_suppress_deprecated
+    with suppress_deprecated(r, deprecated):
+        _genmethod_impl(
+            r,
+            varname,
+            cls_qualname,
+            fn,
+            trampoline_qualname,
+            tmpl,
+            deprecated,
+        )
 
 
 def _gen_method_lambda(
@@ -356,16 +424,22 @@ def enum_def(
         with suppress_deprecated(r, bool(enum.values)):
             for val in enum.values:
                 doc = mkdoc(",", val.doc, "")
-                r.writeln(f'.value("{val.py_name}", {val.full_cpp_name}{doc})')
+                r.writeln(
+                    f'{varname}.value("{val.py_name}", {val.full_cpp_name}{doc});'
+                )
     else:
         for val in enum.values:
             doc = mkdoc(",", val.doc, "")
             with suppress_deprecated(r, val.deprecated):
-                r.writeln(f'.value("{val.py_name}", {val.full_cpp_name}{doc})')
+                r.writeln(
+                    f'{varname}.value("{val.py_name}", {val.full_cpp_name}{doc});'
+                )
 
     if enum.inline_code:
-        r.write_trim(enum.inline_code)
-    r.writeln(";")
+        r.writeln(varname)
+        with r.indent():
+            r.write_trim(enum.inline_code)
+        r.writeln(";")
 
 
 def cls_user_using(r: RenderBuffer, cls: ClassContext):
@@ -472,9 +546,7 @@ def cls_init(
 
 def cls_def_enum(r: RenderBuffer, cctx: ClassContext, varname: str):
     for idx, enum in enumerate(cctx.enums, start=1):
-        r.writeln(f"{cctx.var_name}_enum{idx}")
-        with r.indent():
-            enum_def(r, cctx.var_name, enum, cctx.deprecated)
+        enum_def(r, f"{cctx.var_name}_enum{idx}", enum, cctx.deprecated)
 
 
 def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):

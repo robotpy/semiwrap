@@ -58,10 +58,7 @@ def _render_enum_helper(
             r.writeln("{}")
             r.writeln("void finish() {")
             with r.indent():
-                # enum_def emits fluent suffixes, so provide their receiver here.
-                r.writeln("value")
-                with r.indent():
-                    rpybind11.enum_def(r, "value", enum)
+                rpybind11.enum_def(r, "value", enum)
             r.writeln("}")
         r.writeln(f"}}; // struct {helper_name}")
 
@@ -273,6 +270,11 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                         )
 
             r.writeln("\npy::module &m;\n")
+            suppress_template_initializers = any(
+                tmpl_data.deprecated for tmpl_data in hctx.template_instances
+            )
+            if suppress_template_initializers:
+                r.writeln("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN")
             r.writeln(f"{coordinator_name}(py::module &m) :")
 
             with r.indent():
@@ -284,20 +286,18 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
 
                 for tmpl_data in hctx.template_instances:
                     if not tmpl_data.matched:
-                        with suppress_deprecated(r, tmpl_data.deprecated):
-                            r.writeln(
-                                f'{tmpl_data.var_name}({tmpl_data.scope_var}, "{tmpl_data.py_name}"),'
-                            )
+                        r.writeln(
+                            f'{tmpl_data.var_name}({tmpl_data.scope_var}, "{tmpl_data.py_name}"),'
+                        )
 
                 for cls in hctx.classes:
                     if cls.template is None:
                         r.writeln(f"{_class_helper_var_name(cls)}(m, {cls.scope_var}),")
                         _render_class_access_inits(r, cls, cls)
                     for tmpl_data in _template_instances(cls):
-                        with suppress_deprecated(r, tmpl_data.deprecated):
-                            r.writeln(
-                                f'{tmpl_data.var_name}({tmpl_data.scope_var}, "{tmpl_data.py_name}"),'
-                            )
+                        r.writeln(
+                            f'{tmpl_data.var_name}({tmpl_data.scope_var}, "{tmpl_data.py_name}"),'
+                        )
 
                 r.writeln("m(m)")
 
@@ -316,6 +316,8 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 r.writeln("}")
             else:
                 r.writeln("{}")
+            if suppress_template_initializers:
+                r.writeln("SEMIWRAP_SUPPRESS_DEPRECATED_END")
 
             r.writeln("\nvoid finish() {\n")
 
