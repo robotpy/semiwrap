@@ -10,6 +10,33 @@ from .context import (
     GeneratedLambda,
     PropContext,
 )
+from .render_deprecated import suppress_deprecated
+
+
+_OPERATOR_PY_NAMES = {
+    "-": "__sub__",
+    "+": "__add__",
+    "*": "__mul__",
+    "/": "__truediv__",
+    "%": "__mod__",
+    "&": "__and__",
+    "^": "__xor__",
+    "==": "__eq__",
+    "!=": "__ne__",
+    "|": "__or__",
+    ">": "__gt__",
+    ">=": "__ge__",
+    "<": "__lt__",
+    "<=": "__le__",
+    "+=": "__iadd__",
+    "-=": "__isub__",
+    "*=": "__imul__",
+    "/=": "__itruediv__",
+    "%=": "__imod__",
+    "&=": "__iand__",
+    "^=": "__ixor__",
+    "|=": "__ior__",
+}
 
 
 def mkdoc(pre: str, doc: Documentation, post: str) -> str:
@@ -44,13 +71,14 @@ def _gensig(cls_qualname: T.Optional[str], fn: FunctionContext) -> str:
     )
 
 
-def _genmethod(
+def _genmethod_impl(
     r: RenderBuffer,
     varname: str,
     cls_qualname: T.Optional[str],
     fn: FunctionContext,
     trampoline_qualname: T.Optional[str],
     tmpl: str,
+    avoid_deprecated_pybind_instantiation: bool,
 ):
     qualname = cls_qualname
     arg_params = fn.filtered_params
@@ -64,7 +92,30 @@ def _genmethod(
         r.rel_indent(2)
 
     if fn.operator:
-        r.writeln(f"{varname}.def({fn.cpp_code}")
+        if avoid_deprecated_pybind_instantiation and fn.generated_operator_cpp_code:
+            assert cls_qualname is not None
+            lam_params = [
+                f"{'const ' if fn.const else ''}{cls_qualname} &self",
+                *(param.decl for param in arg_params),
+            ]
+            if arg_params:
+                expression = f"self {fn.operator} {arg_params[0].call_name}"
+            else:
+                expression = f"{fn.operator}self"
+            py_name = (
+                {"-": "__neg__", "+": "__pos__"}.get(fn.operator)
+                if not arg_params
+                else _OPERATOR_PY_NAMES[fn.operator]
+            )
+            r.writeln(
+                f'{varname}.def("{py_name}", '
+                f"[]({', '.join(lam_params)}) -> decltype(auto) {{"
+            )
+            with r.indent():
+                r.writeln(f"return {expression};")
+            r.writeln("}, py::is_operator()")
+        else:
+            r.writeln(f"{varname}.def({fn.cpp_code}")
         arg_params = []
     elif fn.is_constructor:
         if fn.cpp_code:
@@ -85,6 +136,15 @@ def _genmethod(
                 f'{varname}.def_static("{fn.py_name}"',
                 lam_params,
             )
+        elif avoid_deprecated_pybind_instantiation:
+            assert cls_qualname is not None
+            constructor_qualname = trampoline_qualname or cls_qualname
+            constructor_params = ", ".join(param.decl for param in arg_params)
+            call_params = ", ".join(param.call_name for param in arg_params)
+            r.writeln(f"{varname}.def(py::init([]({constructor_params}) {{")
+            with r.indent():
+                r.writeln(f"return new {constructor_qualname}({call_params});")
+            r.writeln("})")
         elif trampoline_qualname:
             r.writeln(
                 f"{varname}.def(py::init_alias<{', '.join(param.full_cpp_type for param in arg_params)}>()"
@@ -186,6 +246,28 @@ def _genmethod(
         r.writeln(f"#endif // {fn.ifndef}\n")
 
 
+def _genmethod(
+    r: RenderBuffer,
+    varname: str,
+    cls_qualname: T.Optional[str],
+    fn: FunctionContext,
+    trampoline_qualname: T.Optional[str],
+    tmpl: str,
+    force_suppress_deprecated: bool = False,
+):
+    deprecated = fn.deprecated or force_suppress_deprecated
+    with suppress_deprecated(r, deprecated):
+        _genmethod_impl(
+            r,
+            varname,
+            cls_qualname,
+            fn,
+            trampoline_qualname,
+            tmpl,
+            deprecated,
+        )
+
+
 def _gen_method_lambda(
     r: RenderBuffer,
     fn: FunctionContext,
@@ -217,9 +299,18 @@ def genmethod(
     cls_qualname: T.Optional[str],
     fn: FunctionContext,
     trampoline_qualname: T.Optional[str],
+    force_suppress_deprecated: bool = False,
 ):
     if not fn.template_impls:
-        _genmethod(r, varname, cls_qualname, fn, trampoline_qualname, "")
+        _genmethod(
+            r,
+            varname,
+            cls_qualname,
+            fn,
+            trampoline_qualname,
+            "",
+            force_suppress_deprecated,
+        )
     else:
         for tmpl in fn.template_impls:
             r.writeln("{")
@@ -234,11 +325,12 @@ def genmethod(
                     fn,
                     trampoline_qualname,
                     f"<{', '.join(tmpl.params)}>",
+                    force_suppress_deprecated,
                 )
             r.writeln("}")
 
 
-def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
+def _genprop_impl(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
     doc = ""
     if prop.doc:
         doc = mkdoc(", py::doc(", prop.doc, ")")
@@ -285,8 +377,29 @@ def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
         )
 
 
-def enum_decl(r: RenderBuffer, enum: EnumContext, varname: str):
-    r.writeln(f"py::enum_<{ enum.full_cpp_name }> {varname};")
+def _genprop(
+    r: RenderBuffer,
+    varname: str,
+    qualname: str,
+    prop: PropContext,
+    force_suppress_deprecated: bool = False,
+):
+    if prop.array and prop.array_size is None:
+        _genprop_impl(r, varname, qualname, prop)
+        return
+
+    with suppress_deprecated(r, prop.deprecated or force_suppress_deprecated):
+        _genprop_impl(r, varname, qualname, prop)
+
+
+def enum_decl(
+    r: RenderBuffer,
+    enum: EnumContext,
+    varname: str,
+    force_suppress_deprecated: bool = False,
+):
+    with suppress_deprecated(r, enum.deprecated or force_suppress_deprecated):
+        r.writeln(f"py::enum_<{ enum.full_cpp_name }> {varname};")
 
 
 def enum_init_args(scope: str, enum: EnumContext):
@@ -301,14 +414,32 @@ def enum_init_args(scope: str, enum: EnumContext):
     return ", ".join(params)
 
 
-def enum_def(r: RenderBuffer, varname: str, enum: EnumContext):
-    for val in enum.values:
-        doc = mkdoc(",", val.doc, "")
-        r.writeln(f'.value("{val.py_name}", {val.full_cpp_name}{doc})')
+def enum_def(
+    r: RenderBuffer,
+    varname: str,
+    enum: EnumContext,
+    force_suppress_deprecated: bool = False,
+):
+    if enum.deprecated or force_suppress_deprecated:
+        with suppress_deprecated(r, bool(enum.values)):
+            for val in enum.values:
+                doc = mkdoc(",", val.doc, "")
+                r.writeln(
+                    f'{varname}.value("{val.py_name}", {val.full_cpp_name}{doc});'
+                )
+    else:
+        for val in enum.values:
+            doc = mkdoc(",", val.doc, "")
+            with suppress_deprecated(r, val.deprecated):
+                r.writeln(
+                    f'{varname}.value("{val.py_name}", {val.full_cpp_name}{doc});'
+                )
 
     if enum.inline_code:
-        r.write_trim(enum.inline_code)
-    r.writeln(";")
+        r.writeln(varname)
+        with r.indent():
+            r.write_trim(enum.inline_code)
+        r.writeln(";")
 
 
 def cls_user_using(r: RenderBuffer, cls: ClassContext):
@@ -319,16 +450,22 @@ def cls_user_using(r: RenderBuffer, cls: ClassContext):
 def cls_auto_using(r: RenderBuffer, cls: ClassContext):
     for ccls in cls.child_classes:
         if not ccls.template:
-            r.writeln(
-                f"using {ccls.cpp_name} [[maybe_unused]] = typename {ccls.full_cpp_name};"
-            )
+            with suppress_deprecated(r, cls.deprecated or ccls.deprecated):
+                r.writeln(
+                    f"using {ccls.cpp_name} [[maybe_unused]] = typename {ccls.full_cpp_name};"
+                )
     for enum in cls.enums:
         if enum.cpp_name:
-            r.writeln(
-                f"using {enum.cpp_name} [[maybe_unused]] = typename {enum.full_cpp_name};"
-            )
+            with suppress_deprecated(r, cls.deprecated or enum.deprecated):
+                r.writeln(
+                    f"using {enum.cpp_name} [[maybe_unused]] = typename {enum.full_cpp_name};"
+                )
     for typealias in cls.auto_typealias:
-        r.writeln(f"{typealias};")
+        with suppress_deprecated(r, cls.deprecated or typealias.deprecated):
+            r.writeln(f"{typealias.declaration};")
+    for ccls in cls.child_classes:
+        if not ccls.template:
+            cls_auto_using(r, ccls)
 
 
 def cls_consts(r: RenderBuffer, cls: ClassContext):
@@ -339,43 +476,44 @@ def cls_consts(r: RenderBuffer, cls: ClassContext):
 
 
 def cls_decl(r: RenderBuffer, cls: ClassContext):
-    if cls.trampoline:
-        tctx = cls.trampoline
-        # py::trampoline_self_life_support
-        r.write_trim(
-            f"""
-            struct {tctx.var} : {tctx.full_cpp_name}, py::trampoline_self_life_support {{
-                using RpyBase = {tctx.full_cpp_name};
-                using RpyBase::RpyBase;
-            }};
+    with suppress_deprecated(r, cls.deprecated):
+        if cls.trampoline:
+            tctx = cls.trampoline
+            # py::trampoline_self_life_support
+            r.write_trim(
+                f"""
+                struct {tctx.var} : {tctx.full_cpp_name}, py::trampoline_self_life_support {{
+                    using RpyBase = {tctx.full_cpp_name};
+                    using RpyBase::RpyBase;
+                }};
 
-        """
-        )
-        r.writeln(
-            f'static_assert(std::is_abstract<{tctx.var}>::value == false, "{cls.full_cpp_name} " SEMIWRAP_BAD_TRAMPOLINE);'
-        )
+            """
+            )
+            r.writeln(
+                f'static_assert(std::is_abstract<{tctx.var}>::value == false, "{cls.full_cpp_name} " SEMIWRAP_BAD_TRAMPOLINE);'
+            )
 
-    class_params = [f"typename {cls.full_cpp_name}"]
-    if cls.nodelete:
-        class_params.append(
-            f"std::unique_ptr<typename {cls.full_cpp_name}, py::nodelete>"
-        )
-    else:
-        class_params.append("py::smart_holder")
+        class_params = [f"typename {cls.full_cpp_name}"]
+        if cls.nodelete:
+            class_params.append(
+                f"std::unique_ptr<typename {cls.full_cpp_name}, py::nodelete>"
+            )
+        else:
+            class_params.append("py::smart_holder")
 
-    if cls.trampoline:
-        class_params.append(cls.trampoline.var)
+        if cls.trampoline:
+            class_params.append(cls.trampoline.var)
 
-    if cls.bases:
-        bases = ", ".join(base.full_cpp_name_w_templates for base in cls.bases)
-        class_params.append(bases)
+        if cls.bases:
+            bases = ", ".join(base.full_cpp_name_w_templates for base in cls.bases)
+            class_params.append(bases)
 
-    r.writeln(f"py::class_<{', '.join(class_params)}> {cls.var_name};")
+        r.writeln(f"py::class_<{', '.join(class_params)}> {cls.var_name};")
 
     if cls.enums:
         r.writeln()
         for index, enum in enumerate(cls.enums, start=1):
-            enum_decl(r, enum, f"{cls.var_name}_enum{index}")
+            enum_decl(r, enum, f"{cls.var_name}_enum{index}", cls.deprecated)
 
     for ccls in cls.child_classes:
         if not ccls.template:
@@ -408,9 +546,7 @@ def cls_init(
 
 def cls_def_enum(r: RenderBuffer, cctx: ClassContext, varname: str):
     for idx, enum in enumerate(cctx.enums, start=1):
-        r.writeln(f"{cctx.var_name}_enum{idx}")
-        with r.indent():
-            enum_def(r, cctx.var_name, enum)
+        enum_def(r, f"{cctx.var_name}_enum{idx}", enum, cctx.deprecated)
 
 
 def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
@@ -418,41 +554,69 @@ def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
         for fn in cls.vcheck_fns:
             assert fn.cpp_code is not None
 
-            r.writeln("{")
-            with r.indent():
-                r.writeln(f"auto vcheck = {fn.cpp_code.strip()};")
+            with suppress_deprecated(r, cls.deprecated or fn.deprecated):
+                r.writeln("{")
+                with r.indent():
+                    r.writeln(f"auto vcheck = {fn.cpp_code.strip()};")
 
-                sig_params = [f"{cls.full_cpp_name}*"]
-                sig_params.extend(p.full_cpp_type for p in fn.all_params)
+                    sig_params = [f"{cls.full_cpp_name}*"]
+                    sig_params.extend(p.full_cpp_type for p in fn.all_params)
 
-                signature = f"{fn.cpp_return_type}({', '.join(sig_params)})"
-                r.writeln(
-                    f"static_assert(std::is_convertible<decltype(vcheck), std::function<{signature}>>::value,"
-                )
-                r.writeln(
-                    f'  "{cls.full_cpp_name}::{fn.cpp_name} must have virtual_xform if cpp_code signature doesn\'t match original function");'
-                )
-            r.writeln("}")
+                    signature = f"{fn.cpp_return_type}({', '.join(sig_params)})"
+                    r.writeln(
+                        f"static_assert(std::is_convertible<decltype(vcheck), std::function<{signature}>>::value,"
+                    )
+                    r.writeln(
+                        f'  "{cls.full_cpp_name}::{fn.cpp_name} must have virtual_xform if cpp_code signature doesn\'t match original function");'
+                    )
+                r.writeln("}")
 
     if cls.doc:
         r.writeln(f'{varname}.doc() = {mkdoc("", cls.doc, "")};')
 
     if cls.add_default_constructor:
-        r.writeln(f"{varname}.def(py::init<>(), release_gil());")
+        with suppress_deprecated(r, cls.deprecated):
+            r.writeln(f"{varname}.def(py::init<>(), release_gil());")
 
     for fn in cls.wrapped_public_methods:
-        genmethod(r, varname, cls.full_cpp_name, fn, None)
+        genmethod(
+            r,
+            varname,
+            cls.full_cpp_name,
+            fn,
+            None,
+            force_suppress_deprecated=cls.deprecated,
+        )
 
     if cls.trampoline is not None:
         for fn in cls.wrapped_protected_methods:
-            genmethod(r, varname, cls.full_cpp_name, fn, cls.trampoline.var)
+            genmethod(
+                r,
+                varname,
+                cls.full_cpp_name,
+                fn,
+                cls.trampoline.var,
+                force_suppress_deprecated=cls.deprecated,
+            )
 
     for prop in cls.public_properties:
-        _genprop(r, varname, cls.full_cpp_name, prop)
+        _genprop(
+            r,
+            varname,
+            cls.full_cpp_name,
+            prop,
+            force_suppress_deprecated=cls.deprecated,
+        )
 
     if cls.trampoline is not None:
         for prop in cls.protected_properties:
-            _genprop(r, varname, cls.trampoline.full_cpp_name, prop)
+            _genprop(
+                r,
+                varname,
+                cls.trampoline.full_cpp_name,
+                prop,
+                force_suppress_deprecated=cls.deprecated,
+            )
 
     if cls.inline_code:
         r.writeln(varname)
@@ -463,10 +627,20 @@ def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
     if cls.unnamed_enums:
         r.writeln()
         for enum in cls.unnamed_enums:
-            for val in enum.values:
-                r.writeln(
-                    f'{varname}.attr("{val.py_name}") = (int){val.full_cpp_name};'
-                )
+            if cls.deprecated or enum.deprecated:
+                with suppress_deprecated(r, bool(enum.values)):
+                    for val in enum.values:
+                        r.writeln(
+                            f'{varname}.attr("{val.py_name}") = '
+                            f"(int){val.full_cpp_name};"
+                        )
+            else:
+                for val in enum.values:
+                    with suppress_deprecated(r, val.deprecated):
+                        r.writeln(
+                            f'{varname}.attr("{val.py_name}") = '
+                            f"(int){val.full_cpp_name};"
+                        )
 
     for ccls in cls.child_classes:
         if not ccls.template:

@@ -12,6 +12,7 @@ from .namespace_utils import namespace_scope, normalize_namespace
 
 from . import render_pybind11 as rpybind11
 from .render_cls_prologue import render_class_prologue
+from .render_deprecated import suppress_deprecated
 from .render_wrapped_class import (
     class_helper_qualname,
     class_scope_exports_qualname,
@@ -57,10 +58,7 @@ def _render_enum_helper(
             r.writeln("{}")
             r.writeln("void finish() {")
             with r.indent():
-                # enum_def emits fluent suffixes, so provide their receiver here.
-                r.writeln("value")
-                with r.indent():
-                    rpybind11.enum_def(r, "value", enum)
+                rpybind11.enum_def(r, "value", enum)
             r.writeln("}")
         r.writeln(f"}}; // struct {helper_name}")
 
@@ -249,10 +247,11 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
             # template decls
             for tmpl_data in hctx.template_instances:
                 if not tmpl_data.matched:
-                    r.writeln(
-                        f"{_absolute_qualname(tmpl_data.binder_full_cpp_name)} "
-                        f"{tmpl_data.var_name};"
-                    )
+                    with suppress_deprecated(r, tmpl_data.deprecated):
+                        r.writeln(
+                            f"{_absolute_qualname(tmpl_data.binder_full_cpp_name)} "
+                            f"{tmpl_data.var_name};"
+                        )
 
             # class decls
             for cls in hctx.classes:
@@ -264,12 +263,18 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                     )
                     _render_class_access_decls(r, cls, cls)
                 for tmpl_data in _template_instances(cls):
-                    r.writeln(
-                        f"{_absolute_qualname(tmpl_data.binder_full_cpp_name)} "
-                        f"{tmpl_data.var_name};"
-                    )
+                    with suppress_deprecated(r, tmpl_data.deprecated):
+                        r.writeln(
+                            f"{_absolute_qualname(tmpl_data.binder_full_cpp_name)} "
+                            f"{tmpl_data.var_name};"
+                        )
 
             r.writeln("\npy::module &m;\n")
+            suppress_template_initializers = any(
+                tmpl_data.deprecated for tmpl_data in hctx.template_instances
+            )
+            if suppress_template_initializers:
+                r.writeln("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN")
             r.writeln(f"{coordinator_name}(py::module &m) :")
 
             with r.indent():
@@ -311,24 +316,27 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 r.writeln("}")
             else:
                 r.writeln("{}")
+            if suppress_template_initializers:
+                r.writeln("SEMIWRAP_SUPPRESS_DEPRECATED_END")
 
             r.writeln("\nvoid finish() {\n")
 
             with r.indent():
                 # Templates
                 for tdata in hctx.template_instances:
-                    r.writeln(f"\n{tdata.var_name}.finish(")
-                    with r.indent():
-                        if tdata.doc_set:
-                            r.writeln(f'{rpybind11.mkdoc("", tdata.doc_set, "")},')
-                        else:
-                            r.writeln("nullptr,")
+                    with suppress_deprecated(r, tdata.deprecated):
+                        r.writeln(f"\n{tdata.var_name}.finish(")
+                        with r.indent():
+                            if tdata.doc_set:
+                                r.writeln(f'{rpybind11.mkdoc("", tdata.doc_set, "")},')
+                            else:
+                                r.writeln("nullptr,")
 
-                        if tdata.doc_add:
-                            r.writeln(rpybind11.mkdoc("", tdata.doc_add, ""))
-                        else:
-                            r.writeln("nullptr")
-                    r.writeln(");")
+                            if tdata.doc_add:
+                                r.writeln(rpybind11.mkdoc("", tdata.doc_add, ""))
+                            else:
+                                r.writeln("nullptr")
+                        r.writeln(");")
 
                 # Class methods
                 for cls in hctx.classes:
