@@ -53,6 +53,9 @@ class EnumeratorContext:
     #: Documentation
     doc: Documentation
 
+    #: Marked deprecated in C++
+    deprecated: bool
+
 
 @dataclass
 class EnumContext:
@@ -81,6 +84,9 @@ class EnumContext:
 
     #: Documentation
     doc: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool
 
     #
     # Copied from user's EnumData
@@ -189,6 +195,9 @@ class FunctionContext:
 
     #: Documentation
     doc: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool
 
     #: parent variable to attach to
     scope_var: str
@@ -300,6 +309,7 @@ class PropContext:
     cpp_type: str
     readonly: bool
     doc: Documentation
+    deprecated: bool
 
     array_size: typing.Optional[int]
     array: bool  # cannot sensibly autowrap an array of incomplete size
@@ -436,6 +446,9 @@ class ClassContext:
 
     #: Documentation
     doc: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool
 
     bases: typing.List[BaseClassData]
 

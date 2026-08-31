@@ -3,6 +3,7 @@
 # suitable for use with the autowrap templates
 #
 
+import ast
 import dataclasses
 import pathlib
 import re
@@ -30,6 +31,7 @@ from cxxheaderparser.tokfmt import tokfmt
 from cxxheaderparser.types import (
     AnonymousName,
     Array,
+    Attribute,
     ClassDecl,
     Concept,
     DecoratedType,
@@ -287,6 +289,61 @@ def _fmt_array_size(t: Array) -> typing.Optional[int]:
             pass
 
     return None
+
+
+@dataclasses.dataclass(frozen=True)
+class Deprecation:
+    message: typing.Optional[str]
+
+
+def _is_deprecated_attribute_name(name: str) -> bool:
+    return name.rsplit("::", 1)[-1].strip("_") == "deprecated"
+
+
+def _decode_deprecation_message(value: typing.Optional[Value]) -> typing.Optional[str]:
+    if value is None:
+        return None
+
+    message_tokens = []
+    depth = 0
+    for token in value.tokens:
+        if token.value in ("(", "[", "{"):
+            depth += 1
+        elif token.value in (")", "]", "}"):
+            depth -= 1
+        elif token.value == "," and depth == 0:
+            break
+        message_tokens.append(token)
+
+    message_parts = []
+    for token in message_tokens:
+        if not token.type.endswith("STRING_LITERAL"):
+            return None
+        match = re.fullmatch(r'(?:u8|u|U|L)?("(?:\\.|[^"\\])*")', token.value)
+        if match is None:
+            return None
+        try:
+            part = ast.literal_eval(match.group(1))
+        except (SyntaxError, ValueError):
+            return None
+        if not isinstance(part, str):
+            return None
+        message_parts.append(part)
+
+    return "".join(message_parts) if message_parts else None
+
+
+def _get_deprecation(
+    attributes: typing.Sequence[Attribute],
+) -> typing.Optional[Deprecation]:
+    deprecated = [a for a in attributes if _is_deprecated_attribute_name(a.name)]
+    if not deprecated:
+        return None
+    for attribute in deprecated:
+        message = _decode_deprecation_message(attribute.value)
+        if message:
+            return Deprecation(message)
+    return Deprecation(None)
 
 
 @dataclasses.dataclass
@@ -569,6 +626,7 @@ class AutowrapVisitor:
             enum_namespace = cls_ctx.namespace
             scope_var = cls_ctx.var_name
 
+        deprecation = _get_deprecation(enum.attributes)
         strip_prefixes: typing.List[str] = []
         values: typing.List[EnumeratorContext] = []
 
@@ -594,6 +652,7 @@ class AutowrapVisitor:
             if v_data.ignore:
                 continue
 
+            value_deprecation = _get_deprecation(v.attributes)
             values.append(
                 EnumeratorContext(
                     full_cpp_name=f"{full_cpp_name}::{name}",
@@ -603,7 +662,13 @@ class AutowrapVisitor:
                         strip_prefixes,
                         name_transform=self.enum_value_name_transform,
                     ),
-                    doc=self._process_doc(v.doxygen, v_data, append_prefix="  "),
+                    doc=self._process_doc(
+                        v.doxygen,
+                        v_data,
+                        append_prefix="  ",
+                        deprecation=value_deprecation,
+                    ),
+                    deprecated=value_deprecation is not None,
                 )
             )
 
@@ -616,7 +681,8 @@ class AutowrapVisitor:
                 full_cpp_name=full_cpp_name,
                 py_name=py_name,
                 values=values,
-                doc=self._process_doc(enum.doxygen, enum_data),
+                doc=self._process_doc(enum.doxygen, enum_data, deprecation=deprecation),
+                deprecated=deprecation is not None,
                 arithmetic=enum_data.arithmetic,
                 inline_code=enum_data.inline_code,
             )
@@ -766,7 +832,8 @@ class AutowrapVisitor:
             # bad assumption? probably
             is_polymorphic = len(class_decl.bases) > 0
 
-        doc = self._process_doc(class_decl.doxygen, class_data)
+        deprecation = _get_deprecation(class_decl.attributes)
+        doc = self._process_doc(class_decl.doxygen, class_data, deprecation=deprecation)
         py_name = self._make_py_name(cls_name, class_data)
 
         constants: typing.List[typing.Tuple[str, str]] = []
@@ -794,6 +861,7 @@ class AutowrapVisitor:
             nodelete=class_data.nodelete,
             final=class_decl.final,
             doc=doc,
+            deprecated=deprecation is not None,
             bases=bases,
             template=template_data,
             user_typealias=user_typealias,
@@ -1031,7 +1099,8 @@ class AutowrapVisitor:
         else:
             prop_readonly = propdata.access == PropAccess.readonly
 
-        doc = self._process_doc(f.doxygen, propdata)
+        deprecation = _get_deprecation(f.attributes)
+        doc = self._process_doc(f.doxygen, propdata, deprecation=deprecation)
 
         array_size = None
         is_array = False
@@ -1050,6 +1119,7 @@ class AutowrapVisitor:
                 cpp_type=cpp_type,
                 readonly=prop_readonly,
                 doc=doc,
+                deprecated=deprecation is not None,
                 array_size=array_size,
                 array=is_array,
                 reference=isinstance(f.type, Reference),
@@ -1475,7 +1545,13 @@ class AutowrapVisitor:
             if data.internal or internal:
                 py_name = f"_{py_name}"
 
-        doc = self._process_doc(fn.doxygen, data, param_remap=param_remap)
+        deprecation = _get_deprecation(fn.attributes)
+        doc = self._process_doc(
+            fn.doxygen,
+            data,
+            param_remap=param_remap,
+            deprecation=deprecation,
+        )
 
         # Allow the user to override our auto-detected keepalives
         if data.keepalive is not None:
@@ -1562,6 +1638,7 @@ class AutowrapVisitor:
         fctx = FunctionContext(
             cpp_name=fn_name,
             doc=doc,
+            deprecated=deprecation is not None,
             scope_var=scope_var,
             # transforms
             py_name=py_name,
@@ -1994,6 +2071,7 @@ class AutowrapVisitor:
         data: HasDoc,
         append_prefix: str = "",
         param_remap: typing.Dict[str, str] = {},
+        deprecation: typing.Optional[Deprecation] = None,
     ) -> Documentation:
         doc = ""
 
@@ -2015,6 +2093,21 @@ class AutowrapVisitor:
             doc += f"\n{append_prefix}" + data.doc_append.replace(
                 "\n", f"\n{append_prefix}"
             )
+
+        if deprecation is not None:
+            message = deprecation.message
+            already_documented = (
+                message in doc
+                if message
+                else re.search(r"\bdeprecated\b", doc, re.IGNORECASE) is not None
+            )
+            if not already_documented:
+                warning = ".. warning::\n   Deprecated."
+                if message:
+                    warning = ".. warning::\n   Deprecated: " + message.replace(
+                        "\n", "\n   "
+                    )
+                doc = f"{doc}\n\n{warning}" if doc else warning
 
         return self._quote_doc(doc)
 
