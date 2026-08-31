@@ -5,6 +5,7 @@ from cxxheaderparser.options import ParserOptions
 
 from semiwrap.autowrap.cxxparser import parse_header
 from semiwrap.autowrap.generator_data import GeneratorData
+from semiwrap.autowrap.render_wrapped import render_wrapped_cpp
 from semiwrap.config.autowrap_yml import (
     AutowrapConfigYaml,
     ClassData,
@@ -30,6 +31,126 @@ def parse_deprecated_header(tmp_path: Path, source: str, config: AutowrapConfigY
 
 def unquote_doc(doc):
     return "".join(ast.literal_eval(line) for line in doc or [])
+
+
+def assert_rendered_suppression(rendered: str, needle: str, suppressed: bool):
+    depth = 0
+    needle_depths = []
+    for line in rendered.splitlines():
+        if line.strip() == "SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN":
+            depth += 1
+        elif line.strip() == "SEMIWRAP_SUPPRESS_DEPRECATED_END":
+            assert depth > 0
+            depth -= 1
+        elif needle in line:
+            needle_depths.append(depth)
+
+    assert depth == 0
+    assert len(needle_depths) == 1
+    assert (needle_depths[0] > 0) is suppressed
+
+
+def test_render_suppresses_only_deprecated_callable_property_and_enum_bindings(
+    tmp_path,
+):
+    source = r"""
+[[deprecated("Use current_free().")]] void old_free();
+void current_free();
+
+enum class [[deprecated("Use CurrentGlobalEnum.")]] OldGlobalEnum {
+    OldGlobalValue,
+    CurrentGlobalValue,
+};
+enum class MixedGlobalEnum {
+    OldMixedGlobal [[deprecated("Use CurrentMixedGlobal.")]],
+    CurrentMixedGlobal,
+};
+
+struct Widget {
+    [[deprecated("Use current_method().")]] void old_method();
+    void current_method();
+
+    [[deprecated("Use current_field.")]] int old_field;
+    int current_field;
+
+    enum class [[deprecated("Use CurrentClassEnum.")]] OldClassEnum {
+        OldClassValue,
+        CurrentClassValue,
+    };
+    enum class MixedClassEnum {
+        OldMixedClass [[deprecated("Use CurrentMixedClass.")]],
+        CurrentMixedClass,
+    };
+    enum {
+        OldUnnamed [[deprecated("Use CurrentUnnamed.")]],
+        CurrentUnnamed,
+    };
+};
+"""
+    config = AutowrapConfigYaml(
+        functions={
+            "old_free": FunctionData(ifdef="HAS_OLD_FREE"),
+            "current_free": FunctionData(),
+        },
+        enums={
+            "OldGlobalEnum": EnumData(),
+            "MixedGlobalEnum": EnumData(),
+        },
+        classes={
+            "Widget": ClassData(
+                methods={
+                    "old_method": FunctionData(),
+                    "current_method": FunctionData(),
+                },
+                attributes={
+                    "old_field": PropData(),
+                    "current_field": PropData(),
+                },
+                enums={
+                    "OldClassEnum": EnumData(),
+                    "MixedClassEnum": EnumData(),
+                },
+            )
+        },
+    )
+
+    rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+
+    assert_rendered_suppression(rendered, 'scope.def("old_free"', True)
+    assert_rendered_suppression(rendered, "#ifdef HAS_OLD_FREE", True)
+    assert_rendered_suppression(rendered, "#endif // HAS_OLD_FREE", True)
+    assert_rendered_suppression(rendered, 'scope.def("current_free"', False)
+
+    assert_rendered_suppression(rendered, 'cls_Widget.def("old_method"', True)
+    assert_rendered_suppression(rendered, 'cls_Widget.def("current_method"', False)
+    assert_rendered_suppression(rendered, 'cls_Widget.def_readwrite("old_field"', True)
+    assert_rendered_suppression(
+        rendered, 'cls_Widget.def_readwrite("current_field"', False
+    )
+
+    assert_rendered_suppression(rendered, "py::enum_<::OldGlobalEnum> value;", True)
+    assert_rendered_suppression(rendered, '.value("OldGlobalValue"', True)
+    assert_rendered_suppression(rendered, '.value("CurrentGlobalValue"', True)
+    assert_rendered_suppression(rendered, "py::enum_<::MixedGlobalEnum> value;", False)
+    assert_rendered_suppression(rendered, '.value("OldMixedGlobal"', True)
+    assert_rendered_suppression(rendered, '.value("CurrentMixedGlobal"', False)
+
+    assert_rendered_suppression(
+        rendered, "py::enum_<::Widget::OldClassEnum> cls_Widget_enum1;", True
+    )
+    assert_rendered_suppression(rendered, '.value("OldClassValue"', True)
+    assert_rendered_suppression(rendered, '.value("CurrentClassValue"', True)
+    assert_rendered_suppression(
+        rendered, "py::enum_<::Widget::MixedClassEnum> cls_Widget_enum2;", False
+    )
+    assert_rendered_suppression(rendered, '.value("OldMixedClass"', True)
+    assert_rendered_suppression(rendered, '.value("CurrentMixedClass"', False)
+    assert_rendered_suppression(rendered, 'cls_Widget.attr("OldUnnamed")', True)
+    assert_rendered_suppression(rendered, 'cls_Widget.attr("CurrentUnnamed")', False)
+
+    assert rendered.count("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN") == rendered.count(
+        "SEMIWRAP_SUPPRESS_DEPRECATED_END"
+    )
 
 
 def test_parses_supported_deprecated_function_attributes(tmp_path):

@@ -10,6 +10,7 @@ from .context import (
     GeneratedLambda,
     PropContext,
 )
+from .render_deprecated import suppress_deprecated
 
 
 def mkdoc(pre: str, doc: Documentation, post: str) -> str:
@@ -44,7 +45,7 @@ def _gensig(cls_qualname: T.Optional[str], fn: FunctionContext) -> str:
     )
 
 
-def _genmethod(
+def _genmethod_impl(
     r: RenderBuffer,
     varname: str,
     cls_qualname: T.Optional[str],
@@ -186,6 +187,19 @@ def _genmethod(
         r.writeln(f"#endif // {fn.ifndef}\n")
 
 
+def _genmethod(
+    r: RenderBuffer,
+    varname: str,
+    cls_qualname: T.Optional[str],
+    fn: FunctionContext,
+    trampoline_qualname: T.Optional[str],
+    tmpl: str,
+    force_suppress_deprecated: bool = False,
+):
+    with suppress_deprecated(r, fn.deprecated or force_suppress_deprecated):
+        _genmethod_impl(r, varname, cls_qualname, fn, trampoline_qualname, tmpl)
+
+
 def _gen_method_lambda(
     r: RenderBuffer,
     fn: FunctionContext,
@@ -217,9 +231,18 @@ def genmethod(
     cls_qualname: T.Optional[str],
     fn: FunctionContext,
     trampoline_qualname: T.Optional[str],
+    force_suppress_deprecated: bool = False,
 ):
     if not fn.template_impls:
-        _genmethod(r, varname, cls_qualname, fn, trampoline_qualname, "")
+        _genmethod(
+            r,
+            varname,
+            cls_qualname,
+            fn,
+            trampoline_qualname,
+            "",
+            force_suppress_deprecated,
+        )
     else:
         for tmpl in fn.template_impls:
             r.writeln("{")
@@ -234,11 +257,12 @@ def genmethod(
                     fn,
                     trampoline_qualname,
                     f"<{', '.join(tmpl.params)}>",
+                    force_suppress_deprecated,
                 )
             r.writeln("}")
 
 
-def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
+def _genprop_impl(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
     doc = ""
     if prop.doc:
         doc = mkdoc(", py::doc(", prop.doc, ")")
@@ -285,8 +309,24 @@ def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
         )
 
 
+def _genprop(
+    r: RenderBuffer,
+    varname: str,
+    qualname: str,
+    prop: PropContext,
+    force_suppress_deprecated: bool = False,
+):
+    if prop.array and prop.array_size is None:
+        _genprop_impl(r, varname, qualname, prop)
+        return
+
+    with suppress_deprecated(r, prop.deprecated or force_suppress_deprecated):
+        _genprop_impl(r, varname, qualname, prop)
+
+
 def enum_decl(r: RenderBuffer, enum: EnumContext, varname: str):
-    r.writeln(f"py::enum_<{ enum.full_cpp_name }> {varname};")
+    with suppress_deprecated(r, enum.deprecated):
+        r.writeln(f"py::enum_<{ enum.full_cpp_name }> {varname};")
 
 
 def enum_init_args(scope: str, enum: EnumContext):
@@ -302,9 +342,16 @@ def enum_init_args(scope: str, enum: EnumContext):
 
 
 def enum_def(r: RenderBuffer, varname: str, enum: EnumContext):
-    for val in enum.values:
-        doc = mkdoc(",", val.doc, "")
-        r.writeln(f'.value("{val.py_name}", {val.full_cpp_name}{doc})')
+    if enum.deprecated:
+        with suppress_deprecated(r, bool(enum.values)):
+            for val in enum.values:
+                doc = mkdoc(",", val.doc, "")
+                r.writeln(f'.value("{val.py_name}", {val.full_cpp_name}{doc})')
+    else:
+        for val in enum.values:
+            doc = mkdoc(",", val.doc, "")
+            with suppress_deprecated(r, val.deprecated):
+                r.writeln(f'.value("{val.py_name}", {val.full_cpp_name}{doc})')
 
     if enum.inline_code:
         r.write_trim(enum.inline_code)
@@ -463,10 +510,20 @@ def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
     if cls.unnamed_enums:
         r.writeln()
         for enum in cls.unnamed_enums:
-            for val in enum.values:
-                r.writeln(
-                    f'{varname}.attr("{val.py_name}") = (int){val.full_cpp_name};'
-                )
+            if enum.deprecated:
+                with suppress_deprecated(r, bool(enum.values)):
+                    for val in enum.values:
+                        r.writeln(
+                            f'{varname}.attr("{val.py_name}") = '
+                            f"(int){val.full_cpp_name};"
+                        )
+            else:
+                for val in enum.values:
+                    with suppress_deprecated(r, val.deprecated):
+                        r.writeln(
+                            f'{varname}.attr("{val.py_name}") = '
+                            f"(int){val.full_cpp_name};"
+                        )
 
     for ccls in cls.child_classes:
         if not ccls.template:
