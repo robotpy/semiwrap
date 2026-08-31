@@ -164,26 +164,52 @@ struct Widget {
     )
 
 
-def test_enum_suppression_preserves_inline_code_statement_termination(tmp_path):
+def test_enum_suppression_preserves_registration_and_inline_statement_structure(
+    tmp_path,
+):
     source = r"""
 enum class [[deprecated("Use CurrentEnum.")]] OldEnum {
     Value,
+    OtherValue,
 };
 """
+    marker = 'm.attr("enum_marker") = py::none()'
     config = AutowrapConfigYaml(
         enums={
             "OldEnum": EnumData(
-                inline_code=(
-                    '.value("Alias", ::OldEnum::Value);\n'
-                    'm.attr("enum_marker") = py::none()'
-                )
+                inline_code=(f'.value("Alias", ::OldEnum::Value);\n{marker}')
             )
         }
     )
 
     rendered = render_wrapped_cpp(parse_deprecated_header(tmp_path, source, config))
+    finish = rendered.split("  void finish() {\n", 1)[1].split("\n  }", 1)[0]
+    finish_lines = [line.strip() for line in finish.splitlines() if line.strip()]
+    registrations = [
+        'value.value("Value", ::OldEnum::Value);',
+        'value.value("OtherValue", ::OldEnum::OtherValue);',
+    ]
 
-    assert 'm.attr("enum_marker") = py::none()\n    ;' in rendered
+    receiver_index = finish_lines.index("value")
+    assert all(finish_lines.index(line) < receiver_index for line in registrations)
+    assert finish_lines.count("value") == 1
+    assert finish_lines[receiver_index:] == [
+        "value",
+        '.value("Alias", ::OldEnum::Value);',
+        marker,
+        ";",
+    ]
+
+    suppression_begin = finish_lines.index("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN")
+    suppression_end = finish_lines.index("SEMIWRAP_SUPPRESS_DEPRECATED_END")
+    assert finish_lines.count("SEMIWRAP_SUPPRESS_DEPRECATED_BEGIN") == 1
+    assert finish_lines.count("SEMIWRAP_SUPPRESS_DEPRECATED_END") == 1
+    assert all(
+        suppression_begin < finish_lines.index(line) < suppression_end
+        for line in registrations
+    )
+    assert suppression_end < receiver_index
+    assert_rendered_suppression(rendered, marker, False)
 
 
 def test_render_suppresses_deprecated_class_and_generated_constexpr_alias(tmp_path):
