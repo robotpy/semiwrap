@@ -1,0 +1,44 @@
+functions:
+  deprecated_without_message:
+  deprecated_free_function:
+  deprecated_documented_function:
+classes:
+  DeprecatedMembers:
+    methods:
+      DeprecatedMembers:
+      deprecated_method:
+      deprecated_static_method:
+      operator==:
+    attributes:
+      deprecated_field:
+      deprecated_static_field:
+  DeprecatedClass:
+    methods:
+      DeprecatedClass:
+      value:
+  DeprecatedVirtual:
+    force_no_default_constructor: true
+    methods:
+      deprecated_virtual:
+      deprecated_protected_method:
+    attributes:
+      deprecated_protected_property:
+  DeprecatedTemplate:
+    template_params:
+    - T
+    methods:
+      DeprecatedTemplate:
+      get:
+enums:
+  DeprecatedEnum:
+    values:
+      Value:
+  MixedDeprecatedEnum:
+    values:
+      DeprecatedValue:
+      CurrentValue:
+templates:
+  DeprecatedTemplateInt:
+    qualname: DeprecatedTemplate
+    params:
+    - int

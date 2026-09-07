@@ -53,6 +53,9 @@ class EnumeratorContext:
     #: Documentation
     doc: Documentation
 
+    #: Marked deprecated in C++
+    deprecated: bool
+
 
 @dataclass
 class EnumContext:
@@ -81,6 +84,9 @@ class EnumContext:
 
     #: Documentation
     doc: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool
 
     #
     # Copied from user's EnumData
@@ -154,6 +160,12 @@ class ParamContext:
 
 
 @dataclass
+class GeneratedTypeAlias:
+    declaration: str
+    deprecated: bool = False
+
+
+@dataclass
 class GeneratedLambda:
     """
     Data for generating a lambda to change the behavior of the function
@@ -189,6 +201,9 @@ class FunctionContext:
 
     #: Documentation
     doc: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool
 
     #: parent variable to attach to
     scope_var: str
@@ -262,6 +277,9 @@ class FunctionContext:
 
     genlambda: typing.Optional[GeneratedLambda] = None
 
+    #: True when cpp_code contains semiwrap-generated py::self operator code
+    generated_operator_cpp_code: bool = False
+
     #: Is this a constructor?
     is_constructor: bool = False
 
@@ -300,6 +318,7 @@ class PropContext:
     cpp_type: str
     readonly: bool
     doc: Documentation
+    deprecated: bool
 
     array_size: typing.Optional[int]
     array: bool  # cannot sensibly autowrap an array of incomplete size
@@ -437,6 +456,9 @@ class ClassContext:
     #: Documentation
     doc: Documentation
 
+    #: Marked deprecated in C++
+    deprecated: bool
+
     bases: typing.List[BaseClassData]
 
     template: typing.Optional[ClassTemplateData]
@@ -502,7 +524,7 @@ class ClassContext:
     unnamed_enums: typing.List[EnumContext] = field(default_factory=list)
 
     #: Extra autodetected 'using' directives
-    auto_typealias: typing.List[str] = field(default_factory=list)
+    auto_typealias: typing.List[GeneratedTypeAlias] = field(default_factory=list)
 
     #: vcheck are various static asserts that check things about the
     #: inline functions
@@ -533,6 +555,9 @@ class TemplateInstanceContext:
 
     doc_set: Documentation
     doc_add: Documentation
+
+    #: Marked deprecated in C++
+    deprecated: bool = False
 
     #: If true, instantiated in class order
     matched: bool = False

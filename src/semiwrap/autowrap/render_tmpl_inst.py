@@ -1,6 +1,7 @@
 from .buffer import RenderBuffer
 from .context import HeaderContext, TemplateInstanceContext
 from .namespace_utils import generated_qualname, namespace_scope
+from .render_deprecated import suppress_deprecated
 
 from .render_cls_prologue import render_class_prologue
 
@@ -25,29 +26,36 @@ def render_template_inst_cpp(
     r.writeln()
 
     with namespace_scope(r, tmpl_data.namespace, anonymous=True):
-        r.write_trim(
-            f"""
-            using BindType = {binder_type}<{tmpl_params}>;
-            static std::unique_ptr<BindType> inst;
-            """
-        )
+        with suppress_deprecated(r, tmpl_data.deprecated):
+            r.write_trim(
+                f"""
+                using BindType = {binder_type}<{tmpl_params}>;
+                static std::unique_ptr<BindType> inst;
+                """
+            )
 
     r.writeln()
     with namespace_scope(r, tmpl_data.namespace, generated=True):
-        r.write_trim(
-            f"""
-            {tmpl_data.binder_typename}::{tmpl_data.binder_typename}(py::module &m, const char * clsName)
-            {{
-              inst = std::make_unique<BindType>(m, clsName);
-            }}
-
-            void {tmpl_data.binder_typename}::finish(const char *set_doc, const char *add_doc)
-            {{
-              inst->finish(set_doc, add_doc);
-              inst.reset();
-            }}
-            """
+        r.writeln(
+            f"{tmpl_data.binder_typename}::{tmpl_data.binder_typename}"
+            "(py::module &m, const char * clsName)"
         )
+        r.writeln("{")
+        with r.indent():
+            with suppress_deprecated(r, tmpl_data.deprecated):
+                r.writeln("inst = std::make_unique<BindType>(m, clsName);")
+        r.writeln("}\n")
+
+        r.writeln(
+            f"void {tmpl_data.binder_typename}::finish"
+            "(const char *set_doc, const char *add_doc)"
+        )
+        r.writeln("{")
+        with r.indent():
+            with suppress_deprecated(r, tmpl_data.deprecated):
+                r.writeln("inst->finish(set_doc, add_doc);")
+                r.writeln("inst.reset();")
+        r.writeln("}")
 
     r.writeln()
     return r.getvalue()
@@ -66,13 +74,14 @@ def render_template_inst_hpp(hctx: HeaderContext) -> str:
     for tmpl_data in hctx.template_instances:
         r.writeln()
         with namespace_scope(r, tmpl_data.namespace, generated=True):
-            r.write_trim(
-                f"""
-                struct {tmpl_data.binder_typename} {{
-                  {tmpl_data.binder_typename}(py::module &m, const char * clsName);
-                  void finish(const char *set_doc, const char *add_doc);
-                }};
-                """
-            )
+            with suppress_deprecated(r, tmpl_data.deprecated):
+                r.write_trim(
+                    f"""
+                    struct {tmpl_data.binder_typename} {{
+                      {tmpl_data.binder_typename}(py::module &m, const char * clsName);
+                      void finish(const char *set_doc, const char *add_doc);
+                    }};
+                    """
+                )
 
     return r.getvalue()

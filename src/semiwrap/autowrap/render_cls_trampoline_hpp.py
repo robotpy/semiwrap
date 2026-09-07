@@ -11,6 +11,7 @@ from .context import (
 )
 from .mangle import trampoline_signature
 from .namespace_utils import generated_qualname, namespace_scope
+from .render_deprecated import suppress_deprecated
 
 from . import render_pybind11 as rpybind11
 
@@ -150,35 +151,36 @@ def _render_cls_trampoline_scoped(
         f"\ntemplate <{postcomma(template_parameter_list)}typename CfgBase = swgen::EmptyTrampolineCfg>"
     )
 
-    if cls.bases:
-        r.writeln(f"struct PyTrampolineCfg_{cls.cpp_name} :")
+    with suppress_deprecated(r, cls.deprecated):
+        if cls.bases:
+            r.writeln(f"struct PyTrampolineCfg_{cls.cpp_name} :")
+
+            with r.indent():
+                for base in cls.bases:
+                    base_cfg = "::" + generated_qualname(
+                        base.namespace_, f"PyTrampolineCfg_{base.cls_name}"
+                    )
+                    r.writeln(f"{base_cfg}<{postcomma(base.template_params)}")
+
+                r.writeln("CfgBase")
+
+                for base in cls.bases:
+                    r.writeln(">")
+        else:
+            r.writeln(f"struct PyTrampolineCfg_{cls.cpp_name} : CfgBase")
+
+        r.writeln("{")
 
         with r.indent():
-            for base in cls.bases:
-                base_cfg = "::" + generated_qualname(
-                    base.namespace_, f"PyTrampolineCfg_{base.cls_name}"
+            r.writeln(f"using Base = {cls.full_cpp_name};\n")
+
+            # specify base class to use for each virtual function
+            for fn in trampoline.virtual_methods:
+                r.writeln(
+                    f"using override_base_{ trampoline_signature(fn) } = { cls.full_cpp_name };"
                 )
-                r.writeln(f"{base_cfg}<{postcomma(base.template_params)}")
 
-            r.writeln("CfgBase")
-
-            for base in cls.bases:
-                r.writeln(">")
-    else:
-        r.writeln(f"struct PyTrampolineCfg_{cls.cpp_name} : CfgBase")
-
-    r.writeln("{")
-
-    with r.indent():
-        r.writeln(f"using Base = {cls.full_cpp_name};\n")
-
-        # specify base class to use for each virtual function
-        for fn in trampoline.virtual_methods:
-            r.writeln(
-                f"using override_base_{ trampoline_signature(fn) } = { cls.full_cpp_name };"
-            )
-
-    r.writeln("};")
+        r.writeln("};")
 
     if cls.bases:
         # To avoid multiple inheritance here, we define a single base with bases that
@@ -208,44 +210,49 @@ def _render_cls_trampoline_scoped(
                 r.writeln(", PyTrampolineCfg>")
                 r.rel_indent(-2)
 
-        r.write_trim(
-            f"""
-            ;
+        r.writeln(";")
 
-            template <typename PyTrampolineBase{ precomma(template_parameter_list) }, typename PyTrampolineCfg>
-            struct PyTrampoline_{ cls.cpp_name } : PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg> {{
-              using PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg>::PyTrampolineBase_{ cls.cpp_name };
-        """
-        )
+        with suppress_deprecated(r, cls.deprecated):
+            r.write_trim(
+                f"""
+                template <typename PyTrampolineBase{ precomma(template_parameter_list) }, typename PyTrampolineCfg>
+                struct PyTrampoline_{ cls.cpp_name } : PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg> {{
+                  using PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg>::PyTrampolineBase_{ cls.cpp_name };
+            """
+            )
 
     else:
         r.writeln()
-        r.write_trim(
-            f"""
-            template <typename PyTrampolineBase{ precomma(template_parameter_list) }, typename PyTrampolineCfg>
-            struct PyTrampoline_{ cls.cpp_name } : PyTrampolineBase {{
-              using PyTrampolineBase::PyTrampolineBase;
-        """
-        )
+        with suppress_deprecated(r, cls.deprecated):
+            r.write_trim(
+                f"""
+                template <typename PyTrampolineBase{ precomma(template_parameter_list) }, typename PyTrampolineCfg>
+                struct PyTrampoline_{ cls.cpp_name } : PyTrampolineBase {{
+                  using PyTrampolineBase::PyTrampolineBase;
+            """
+            )
 
     with r.indent():
         for ccls in cls.child_classes:
             if not ccls.template:
-                r.writeln(
-                    f"using {ccls.cpp_name} [[maybe_unused]] = typename {ccls.full_cpp_name};"
-                )
+                with suppress_deprecated(r, cls.deprecated or ccls.deprecated):
+                    r.writeln(
+                        f"using {ccls.cpp_name} [[maybe_unused]] = typename {ccls.full_cpp_name};"
+                    )
 
         for enum in cls.enums:
             if enum.cpp_name:
-                r.writeln(
-                    f"using {enum.cpp_name} [[maybe_unused]] = typename {enum.full_cpp_name};"
-                )
+                with suppress_deprecated(r, cls.deprecated or enum.deprecated):
+                    r.writeln(
+                        f"using {enum.cpp_name} [[maybe_unused]] = typename {enum.full_cpp_name};"
+                    )
 
         for typealias in cls.user_typealias:
             r.writeln(f"{typealias};")
 
-        for typealias in cls.auto_typealias:
-            r.writeln(f"{typealias};")
+        for generated_alias in cls.auto_typealias:
+            with suppress_deprecated(r, cls.deprecated or generated_alias.deprecated):
+                r.writeln(f"{generated_alias.declaration};")
 
         if cls.constants:
             r.writeln()
@@ -257,23 +264,24 @@ def _render_cls_trampoline_scoped(
         #
 
         for fn in trampoline.protected_constructors:
-            r.writeln(
-                f"\n#ifdef SWGEN_ENABLE_{cls.full_cpp_name_identifier}_PROTECTED_CONSTRUCTORS"
-            )
-            with r.indent():
-                all_decls = ", ".join(p.decl for p in fn.all_params)
-                all_names = ", ".join(p.arg_name for p in fn.all_params)
-                r.writeln(f"PyTrampoline_{cls.cpp_name}({all_decls}) :")
+            with suppress_deprecated(r, cls.deprecated or fn.deprecated):
+                r.writeln(
+                    f"\n#ifdef SWGEN_ENABLE_{cls.full_cpp_name_identifier}_PROTECTED_CONSTRUCTORS"
+                )
+                with r.indent():
+                    all_decls = ", ".join(p.decl for p in fn.all_params)
+                    all_names = ", ".join(p.arg_name for p in fn.all_params)
+                    r.writeln(f"PyTrampoline_{cls.cpp_name}({all_decls}) :")
 
-                if cls.bases:
-                    r.writeln(
-                        f"  PyTrampolineBase_{cls.cpp_name}<PyTrampolineBase{precomma(trampoline.tmpl_args)}, PyTrampolineCfg>({all_names})"
-                    )
-                else:
-                    r.writeln(f"  PyTrampolineBase({all_names})")
+                    if cls.bases:
+                        r.writeln(
+                            f"  PyTrampolineBase_{cls.cpp_name}<PyTrampolineBase{precomma(trampoline.tmpl_args)}, PyTrampolineCfg>({all_names})"
+                        )
+                    else:
+                        r.writeln(f"  PyTrampolineBase({all_names})")
 
-                r.writeln("{}")
-            r.writeln("#endif")
+                    r.writeln("{}")
+                r.writeln("#endif")
 
         #
         # virtual methods
@@ -287,27 +295,29 @@ def _render_cls_trampoline_scoped(
         #
 
         for fn in trampoline.non_virtual_protected_methods:
-            r.writeln(f"\n#ifndef SWGEN_DISABLE_{ trampoline_signature(fn) }")
+            with suppress_deprecated(r, cls.deprecated or fn.deprecated):
+                r.writeln(f"\n#ifndef SWGEN_DISABLE_{ trampoline_signature(fn) }")
 
-            # hack to ensure we don't do 'using' twice' in the same class, while
-            # also ensuring that the overrides can be selectively disabled by
-            # child trampoline functions
-            with r.indent():
-                r.writeln(f"#ifndef SWGEN_UDISABLE_{ using_signature(cls, fn) }")
+                # hack to ensure we don't do 'using' twice' in the same class, while
+                # also ensuring that the overrides can be selectively disabled by
+                # child trampoline functions
                 with r.indent():
-                    r.write_trim(
-                        f"""
-                        using { cls.full_cpp_name }::{ fn.cpp_name };
-                        #define SWGEN_UDISABLE_{ using_signature(cls, fn) }
-                    """
-                    )
+                    r.writeln(f"#ifndef SWGEN_UDISABLE_{ using_signature(cls, fn) }")
+                    with r.indent():
+                        r.write_trim(
+                            f"""
+                            using { cls.full_cpp_name }::{ fn.cpp_name };
+                            #define SWGEN_UDISABLE_{ using_signature(cls, fn) }
+                        """
+                        )
+                    r.writeln("#endif")
                 r.writeln("#endif")
-            r.writeln("#endif")
 
         if cls.protected_properties:
             r.writeln()
             for prop in cls.protected_properties:
-                r.writeln(f"using {cls.full_cpp_name}::{prop.cpp_name};")
+                with suppress_deprecated(r, cls.deprecated or prop.deprecated):
+                    r.writeln(f"using {cls.full_cpp_name}::{prop.cpp_name};")
 
         if trampoline.inline_code:
             r.writeln()
@@ -317,6 +327,13 @@ def _render_cls_trampoline_scoped(
 
 
 def _render_cls_trampoline_virtual_method(
+    r: RenderBuffer, cls: ClassContext, fn: FunctionContext
+):
+    with suppress_deprecated(r, cls.deprecated or fn.deprecated):
+        _render_cls_trampoline_virtual_method_impl(r, cls, fn)
+
+
+def _render_cls_trampoline_virtual_method_impl(
     r: RenderBuffer, cls: ClassContext, fn: FunctionContext
 ):
     r.writeln(f"\n#ifndef SWGEN_DISABLE_{ trampoline_signature(fn) }")
