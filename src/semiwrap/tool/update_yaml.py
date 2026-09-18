@@ -191,7 +191,8 @@ class YamlUpdater:
         )
 
         if args.write:
-            print(files_updated, "files were updated")
+            if files_updated:
+                print(files_updated, "files were updated")
             return True
 
         # When not writing, return True if no changes needed, False otherwise
