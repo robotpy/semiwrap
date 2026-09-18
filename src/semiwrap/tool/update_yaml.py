@@ -56,6 +56,12 @@ class YamlUpdater:
         parser.add_argument(
             "-v", "--verbose", help="Show full traceback", action="store_true"
         )
+        parser.add_argument(
+            "-q",
+            "--quiet",
+            help="Only report updated files when some were updated",
+            action="store_true",
+        )
 
         max_jobs = os.cpu_count() or 1
 
@@ -191,7 +197,7 @@ class YamlUpdater:
         )
 
         if args.write:
-            if files_updated:
+            if files_updated or not args.quiet:
                 print(files_updated, "files were updated")
             return True
 
