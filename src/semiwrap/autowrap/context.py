@@ -227,6 +227,9 @@ class FunctionContext:
     # User settings from autowrap_yml.FunctionData
     #
 
+    #: Lower integers are registered first; ties preserve existing order
+    binding_order: int
+
     #: If True, don't wrap this, but provide a pure virtual implementation
     ignore_pure: bool
 

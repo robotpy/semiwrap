@@ -440,12 +440,14 @@ def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
     if cls.add_default_constructor:
         r.writeln(f"{varname}.def(py::init<>(), release_gil());")
 
-    for fn in cls.wrapped_public_methods:
-        genmethod(r, varname, cls.full_cpp_name, fn, None)
-
+    methods: T.List[T.Tuple[FunctionContext, T.Optional[str]]] = [
+        (fn, None) for fn in cls.wrapped_public_methods
+    ]
     if cls.trampoline is not None:
-        for fn in cls.wrapped_protected_methods:
-            genmethod(r, varname, cls.full_cpp_name, fn, cls.trampoline.var)
+        methods.extend((fn, cls.trampoline.var) for fn in cls.wrapped_protected_methods)
+
+    for fn, trampoline in sorted(methods, key=lambda method: method[0].binding_order):
+        genmethod(r, varname, cls.full_cpp_name, fn, trampoline)
 
     for prop in cls.public_properties:
         _genprop(r, varname, cls.full_cpp_name, prop)

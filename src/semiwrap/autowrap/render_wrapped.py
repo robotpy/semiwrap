@@ -338,7 +338,10 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                 # Global methods
                 if hctx.functions:
                     r.writeln()
-                    for index, fn in enumerate(hctx.functions, start=1):
+                    for index, fn in sorted(
+                        enumerate(hctx.functions, start=1),
+                        key=lambda item: item[1].binding_order,
+                    ):
                         if not fn.ignore_py:
                             r.writeln(
                                 f"{_absolute_qualname(_function_helper_qualname(hctx, fn, index))}"

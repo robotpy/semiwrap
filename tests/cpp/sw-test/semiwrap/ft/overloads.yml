@@ -1,9 +1,109 @@
 functions:
+  bindingOrder:
+    overloads:
+      int:
+      long:
+        binding_order: -1
+  bindingOrderUnchanged:
+    overloads:
+      long:
+      int:
+  bindingOrderLater:
+    overloads:
+      int:
+        binding_order: 3
+      long:
+  bindingOrderTied:
+    overloads:
+      int, int:
+      long long, int:
+        binding_order: -2
+      long:
+        binding_order: -2
+  bindingOrderInherited:
+    binding_order: 2
+    overloads:
+      int, int, int:
+      long, int, int:
+      long long, int:
+        binding_order: 0
+      short:
+        binding_order: -1
   fnOverload:
     overloads:
       int, int:
       int:
 classes:
+  BindingOrder:
+    attributes:
+      selected:
+    methods:
+      BindingOrder:
+        overloads:
+          int:
+            binding_order: 1
+          long:
+      choose:
+        overloads:
+          int:
+          long:
+            binding_order: -1
+      unchanged:
+        overloads:
+          int:
+          long:
+      chooseStatic:
+        overloads:
+          int:
+          long:
+            binding_order: -1
+      later:
+        overloads:
+          int:
+            binding_order: 3
+          long:
+      tied:
+        overloads:
+          int, int:
+          long long, int:
+            binding_order: -2
+          long:
+            binding_order: -2
+      inherited:
+        binding_order: 2
+        overloads:
+          int, int, int:
+          long, int, int:
+          long long, int:
+            binding_order: 0
+          short:
+            binding_order: -1
+      mixedUnchanged:
+        rename: mixedUnchanged
+        overloads:
+          long:
+          int:
+      mixedPrioritized:
+        rename: mixedPrioritized
+        overloads:
+          long:
+            binding_order: -1
+          int:
+      chooseProtected:
+        overloads:
+          int:
+          long:
+            binding_order: -1
+  BindingOrderTemplate:
+    template_params:
+    - T
+    methods:
+      choose:
+        binding_order: 2
+        overloads:
+          T:
+          long:
+            binding_order: 0
   OverloadedObject:
     methods:
       overloaded:
@@ -31,3 +131,8 @@ classes:
       overloaded_private:
         overloads:
           int:
+templates:
+  BindingOrderTemplateInt:
+    qualname: BindingOrderTemplate
+    params:
+    - int
