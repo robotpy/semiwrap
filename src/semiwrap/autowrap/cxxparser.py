@@ -1575,6 +1575,7 @@ class AutowrapVisitor:
             # info
             # vararg=fn.vararg,
             # user settings
+            binding_order=data.binding_order if data.binding_order is not None else 0,
             ignore_pure=data.ignore_pure,
             ignore_py=data.ignore_py,
             cpp_code=data.cpp_code,

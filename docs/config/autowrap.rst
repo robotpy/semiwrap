@@ -96,6 +96,38 @@ Semiwrap emits ``py::kw_only()`` before the first exposed argument that retains
 a default. An argument with ``param_override.no_default: true`` does not trigger
 the keyword-only marker.
 
+Overload binding order
+----------------------
+
+When multiple overloads can accept the same Python arguments, pybind11 tries
+matching overloads in registration order within each overload-resolution pass.
+Use ``binding_order`` to register a preferred overload earlier:
+
+.. code-block:: yaml
+
+   classes:
+     MyClass:
+       methods:
+         my_method:
+           overloads:
+             SomeType:
+               binding_order: -1
+             OtherType:
+
+Lower integers bind first. The default is ``0``, so negative values move an
+overload earlier and positive values move it later. Equal values preserve the
+existing binding order; the order of entries in YAML does not affect it.
+
+The setting also works for constructors, static and exposed protected methods,
+and free functions under ``functions``. It can be set on a function or method
+as a default for its overloads; an overload's explicit value (including ``0``)
+overrides that default.
+
+Ordering applies within a class (including public and exposed protected methods)
+or among free functions generated from one header. It does not reorder classes,
+headers, or handwritten ``inline_code`` bindings, and does not change pybind11's
+preference for matches that require no argument conversion.
+
 Name transforms
 ---------------
 

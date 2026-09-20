@@ -152,6 +152,12 @@ class OverloadData:
     #: ``defaults.default_args_as_kw_only``.
     default_args_as_kw_only: Optional[bool] = None
 
+    #: Binding priority: lower integers are registered with pybind11 first.
+    #: Ties preserve the existing order. Inherits the function/method setting
+    #: when omitted, otherwise defaults to 0. Applies within a class or within
+    #: the free functions of a single header, not across headers or classes.
+    binding_order: Optional[int] = None
+
     #: If True, prepends an underscore to the python name
     internal: bool = False
 
