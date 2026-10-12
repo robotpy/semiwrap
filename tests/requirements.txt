@@ -2,6 +2,7 @@ build
 black == 24.8.0; python_version < "3.9"
 black == 25.1.0; python_version >= "3.9"
 pytest
+docutils
 hatchling
 hatch-meson
 ninja
