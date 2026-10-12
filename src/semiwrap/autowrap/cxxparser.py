@@ -41,8 +41,8 @@ from cxxheaderparser.types import (
     Function,
     FunctionType,
     FundamentalSpecifier,
-    Method,
     MemberPointer,
+    Method,
     MoveReference,
     NamespaceAlias,
     NameSpecifier,
@@ -54,8 +54,8 @@ from cxxheaderparser.types import (
     TemplateInst,
     TemplateTypeParam,
     Type,
-    TypeId,
     Typedef,
+    TypeId,
     UsingAlias,
     UsingDecl,
     Value,
@@ -2001,16 +2001,13 @@ class AutowrapVisitor:
         if data.doc is not None:
             doc = data.doc
         elif doxygen:
-            doc = doxygen
+            d = sphinxify.Doc.from_comment(doxygen)
             if param_remap:
-                d = sphinxify.Doc.from_comment(doc)
                 for param in d.params:
                     new_name = param_remap.get(param.name)
                     if new_name:
                         param.name = new_name
-                doc = str(d)
-            else:
-                doc = sphinxify.process_raw(doc)
+            doc = str(d)
 
         if data.doc_append is not None:
             doc += f"\n{append_prefix}" + data.doc_append.replace(
