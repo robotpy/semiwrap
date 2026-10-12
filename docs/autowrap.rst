@@ -70,6 +70,89 @@ docstrings set explicitly using a ``doc`` value in the YAML file.
      X:
        doc: Docstring for this class
 
+.. _doc_code_blocks:
+
+Replacing code examples
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Use ``doc_code_blocks`` to replace examples in a declaration's Doxygen comment
+with Python while keeping its surrounding documentation:
+
+.. code-block:: yaml
+
+   classes:
+     Timer:
+       methods:
+         CreateStarted:
+           doc_code_blocks:
+             - |
+               timer = Timer()
+               timer.start()
+
+Each string is Python source, not reStructuredText. semiwrap renders it as a
+``.. code-block:: python`` directive in the original documentation section.
+Parameter renaming continues to apply to parameter documentation.
+
+Supply one entry per source block in its original order, including blocks in
+parameter and return descriptions. Supported forms include Doxygen ``@code`` or
+``\\code`` (including language annotations such as ``{.cpp}``), HTML ``<pre>``
+and ``<pre><code>``, and Markdown backtick or tilde fences. Inline code is not
+counted. To preserve a block, such as a diagram, use a ``null`` entry:
+
+.. code-block:: yaml
+
+   classes:
+     Example:
+       doc_code_blocks:
+         - null
+         - |
+           for item in items:
+               process(item)
+
+A nonempty list must match the source block count exactly. Missing comments,
+count mismatches, empty or whitespace-only replacement strings, and unterminated
+source blocks are generation errors. Diagnostics identify the header and
+declaration. Count checking detects added or removed blocks, but not reordering
+that leaves the count unchanged; review upstream example changes accordingly.
+
+The field is supported on classes, methods, overloads, free functions,
+properties, enums, and enum values. For an overloaded function, a list on the
+function is inherited by its overloads. A list on an individual overload replaces
+that inherited list rather than extending it. Put replacements on the documented
+overload if other overloads have no comments:
+
+.. code-block:: yaml
+
+   classes:
+     Example:
+       methods:
+         Run:
+           doc_code_blocks:
+             - example.run(1)
+           overloads:
+             int:
+             double:
+               doc_code_blocks:
+                 - example.run(1.5)
+             bool:
+               doc_code_blocks: []
+
+An omitted field leaves the normal documentation conversion unchanged (or
+inherits function-level configuration). An explicit ``[]`` disables replacement,
+including inherited replacements; it does not assert a zero block count.
+
+Active replacements cannot be combined with ``doc`` because a full override
+bypasses the source comment. Set ``doc_code_blocks: []`` to disable inherited
+replacements when supplying a full override. ``doc_append`` is applied after
+replacement and remains author-supplied reStructuredText; its examples are not
+replacement targets.
+
+For templated classes, configure replacements under ``classes:``. All
+instantiations share the class examples; per-instance replacements under
+``templates:`` are not supported. This feature replaces only code, not prose
+such as references to C++ structured bindings. A full ``doc`` override remains
+appropriate when that surrounding text also needs to change.
+
 .. _autowrap_parameters:
 
 Parameters

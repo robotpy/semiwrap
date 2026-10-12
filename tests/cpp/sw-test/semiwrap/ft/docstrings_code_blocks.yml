@@ -1,0 +1,73 @@
+classes:
+  DocCodeBlocks:
+    doc_code_blocks:
+      - null
+      - item = DocCodeBlocks()
+    doc_append: |
+
+      Additional notes.
+
+      .. code-block:: cpp
+
+         appended();
+    attributes:
+      value:
+        doc_code_blocks:
+          - item.value = 5
+    methods:
+      example:
+        doc_code_blocks:
+          - |
+            if value:
+                result = item.example(value)
+
+                print("result:", result, "\\")
+        param_override:
+          x:
+            name: value
+      overloaded:
+        doc_code_blocks:
+          - inherited_example()
+        overloads:
+          int:
+            doc_code_blocks:
+              - integer_example()
+          double:
+          bool:
+            doc_code_blocks: []
+      overridden:
+        doc: Full override.
+        doc_code_blocks:
+          - unused_example()
+        overloads:
+          int:
+            doc_code_blocks: []
+  DocCodeTemplate:
+    doc_code_blocks:
+      - instance = DocCodeTemplateInt()
+    template_params: [T]
+    methods:
+      echo:
+functions:
+  doc_code_function:
+    doc_code_blocks:
+      - x = doc_code_function()
+      - value = doc_code_function()
+  doc_code_unchanged:
+  doc_code_disabled:
+    doc_code_blocks: []
+enums:
+  DocCodeEnum:
+    doc_code_blocks:
+      - enum_example = DocCodeEnum.Ready
+    values:
+      Ready:
+        doc_code_blocks:
+          - value = DocCodeEnum.Ready
+templates:
+  DocCodeTemplateInt:
+    qualname: DocCodeTemplate
+    params: [int]
+  DocCodeTemplateDouble:
+    qualname: DocCodeTemplate
+    params: [double]
