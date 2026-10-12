@@ -1,9 +1,9 @@
 classes:
   DocCodeBlocks:
     doc_code_blocks:
-      - null
-      - item = DocCodeBlocks()
-    doc_append: |
+    - 
+    - item = DocCodeBlocks()
+    doc_append: |2
 
       Additional notes.
 
@@ -13,57 +13,57 @@ classes:
     attributes:
       value:
         doc_code_blocks:
-          - item.value = 5
+        - item.value = 5
     methods:
       example:
         doc_code_blocks:
-          - |
-            if value:
-                result = item.example(value)
+        - |
+          if value:
+              result = item.example(value)
 
-                print("result:", result, "\\")
+              print("result:", result, "\\")
         param_override:
           x:
             name: value
       overloaded:
         doc_code_blocks:
-          - inherited_example()
+        - inherited_example()
         overloads:
           int:
             doc_code_blocks:
-              - integer_example()
+            - integer_example()
           double:
           bool:
             doc_code_blocks: []
       overridden:
         doc: Full override.
         doc_code_blocks:
-          - unused_example()
+        - unused_example()
         overloads:
           int:
             doc_code_blocks: []
   DocCodeTemplate:
     doc_code_blocks:
-      - instance = DocCodeTemplateInt()
+    - instance = DocCodeTemplateInt()
     template_params: [T]
     methods:
       echo:
 functions:
   doc_code_function:
     doc_code_blocks:
-      - x = doc_code_function()
-      - value = doc_code_function()
+    - x = doc_code_function()
+    - value = doc_code_function()
   doc_code_unchanged:
   doc_code_disabled:
     doc_code_blocks: []
 enums:
   DocCodeEnum:
     doc_code_blocks:
-      - enum_example = DocCodeEnum.Ready
+    - enum_example = DocCodeEnum.Ready
     values:
       Ready:
         doc_code_blocks:
-          - value = DocCodeEnum.Ready
+        - value = DocCodeEnum.Ready
 templates:
   DocCodeTemplateInt:
     qualname: DocCodeTemplate
