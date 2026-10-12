@@ -1,8 +1,6 @@
 classes:
   DocCodeBlocks:
-    doc_code_blocks:
-    - 
-    - item = DocCodeBlocks()
+    doc_code_blocks: [null, item = DocCodeBlocks()]
     doc_append: |2
 
       Additional notes.
