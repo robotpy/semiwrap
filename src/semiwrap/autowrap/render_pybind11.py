@@ -161,7 +161,7 @@ def _genmethod(
 
     other_params = []
 
-    if fn.release_gil:
+    if fn.release_gil and not (fn.genlambda and not fn.cpp_code):
         other_params.append("release_gil()")
 
     for nurse, patient in fn.keepalives:
@@ -203,7 +203,18 @@ def _gen_method_lambda(
 
         call_params = ", ".join(p.call_name for p in fn.all_params)
 
-        r.writeln(f"{genlambda.call_start}{call_qual}{tmpl}({call_params});")
+        call = f"{call_qual}{tmpl}({call_params})"
+        if fn.release_gil:
+            # Buffer acquisition and cleanup (and other wrapper operations) need
+            # the GIL. Release it only for the underlying C++ call, reacquiring
+            # it before returning or unwinding through the wrapper's locals.
+            r.writeln(f"{genlambda.call_start}[&]() {{")
+            with r.indent():
+                r.writeln("py::gil_scoped_release __release;")
+                r.writeln(f"return {call};")
+            r.writeln("}();")
+        else:
+            r.writeln(f"{genlambda.call_start}{call};")
 
         if genlambda.ret:
             r.writeln(genlambda.ret)
