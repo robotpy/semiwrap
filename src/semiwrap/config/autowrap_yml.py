@@ -134,7 +134,8 @@ class OverloadData:
     #: Generate this in an `#ifndef`
     ifndef: Optional[str] = None
 
-    #: Use this code instead of the generated code
+    #: Use this code instead of the generated code. The GIL is held by default
+    #: when executing this code; see ``no_release_gil`` to override this behavior.
     cpp_code: Optional[str] = None
 
     #: Docstring for the function, will attempt to convert Doxygen docs if omitted
@@ -181,8 +182,16 @@ class OverloadData:
     #: If specified, put the function in a sub.pack.age
     subpackage: Optional[str] = None
 
-    #: By default, semiwrap will release the GIL whenever a wrapped
-    #: function is called.
+    #: Controls whether the GIL is released when calling a wrapped function.
+    #: When omitted, the GIL is released for generated bindings, but held when
+    #: ``cpp_code`` is specified. Set to True to keep the GIL held, or False to
+    #: release it explicitly (including for ``cpp_code``).
+    #:
+    #: Generated wrapping lambdas release the GIL only around the underlying
+    #: C++ call; buffer acquisition, validation, and cleanup run with it held.
+    #: For ``cpp_code``, False adds a call guard that releases the GIL around
+    #: the entire custom callable. That code must acquire the GIL before using
+    #: Python APIs, including requesting Python buffers.
     no_release_gil: Optional[bool] = None
 
     #: Configures parameters that can receive objects that implement the buffer protocol
