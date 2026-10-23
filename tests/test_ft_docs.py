@@ -1,14 +1,6 @@
 import inspect
 
-from docutils import nodes
-from docutils.core import publish_doctree
 from swtest import ft
-
-
-def _doc_blocks(doc):
-    tree = publish_doctree(doc, settings_overrides={"halt_level": 2})
-    assert not list(tree.findall(nodes.system_message))
-    return list(tree.findall(nodes.literal_block))
 
 
 def test_doc_code_block_in_return_with_parameter_rename():
@@ -32,42 +24,68 @@ def test_doc_code_block_in_return_with_parameter_rename():
                          print("result:", result, "\\")
         """
     )
-    block = _doc_blocks(body)[0]
-    assert isinstance(block.parent, nodes.field_body)
-    assert block.parent.parent[0].astext() == "returns"
-    assert (
-        block.astext()
-        == 'if value:\n    result = item.example(value)\n\n    print("result:", result, "\\\\")'
-    )
 
 
 def test_doc_code_class_preserves_diagram_and_appends_rst():
     doc = inspect.getdoc(ft.DocCodeBlocks)
-    assert doc.startswith("A class with examples.")
-    assert [b.astext() for b in _doc_blocks(doc)] == [
-        "+---+\n| x |\n+---+",
-        "item = DocCodeBlocks()",
-        "appended();",
-    ]
-    assert "Additional notes." in doc
+    assert doc == inspect.cleandoc(
+        """
+        A class with examples.
+
+        ::
+
+           +---+
+           | x |
+           +---+
+
+        Create an instance:
+
+        .. code-block:: python
+
+           item = DocCodeBlocks()
+
+        Additional notes.
+
+        .. code-block:: cpp
+
+           appended();
+        """
+    )
 
 
 def test_doc_code_property():
     obj = ft.DocCodeBlocks()
     obj.value = 5
     assert obj.value == 5
-    assert [
-        b.astext() for b in _doc_blocks(inspect.getdoc(ft.DocCodeBlocks.value))
-    ] == ["item.value = 5"]
+    assert inspect.getdoc(ft.DocCodeBlocks.value) == inspect.cleandoc(
+        """
+        Set the value:
+
+        .. code-block:: python
+
+           item.value = 5
+        """
+    )
 
 
 def test_doc_code_free_function_multiple_blocks():
     assert ft.doc_code_function() == 42
     body = inspect.getdoc(ft.doc_code_function).split("\n\n", 1)[1]
-    assert [b.astext() for b in _doc_blocks(body)] == [
-        "x = doc_code_function()",
-        "value = doc_code_function()",
-    ]
+    assert body == inspect.cleandoc(
+        """
+        Function examples:
+
+        .. code-block:: python
+
+           x = doc_code_function()
+
+        Another example:
+
+        .. code-block:: python
+
+           value = doc_code_function()
+        """
+    )
 
 
 def test_doc_code_omitted_and_disabled():
@@ -78,8 +96,7 @@ def test_doc_code_omitted_and_disabled():
         (ft.doc_code_disabled, "auto x = doc_code_disabled();"),
     ]:
         body = inspect.getdoc(fn).split("\n\n", 1)[1]
-        assert [b.astext() for b in _doc_blocks(body)] == [source]
-        assert ".. code-block:: cpp" in body
+        assert body == ".. code-block:: cpp\n\n   " + source
 
 
 def test_doc_code_overload_inheritance_and_disabling():
@@ -118,9 +135,15 @@ def test_doc_code_shared_template_examples():
     assert ft.DocCodeTemplateDouble().echo(1.5) == 1.5
     first = inspect.getdoc(ft.DocCodeTemplateInt)
     assert first == inspect.getdoc(ft.DocCodeTemplateDouble)
-    assert [b.astext() for b in _doc_blocks(first)] == [
-        "instance = DocCodeTemplateInt()"
-    ]
+    assert first == inspect.cleandoc(
+        """
+        Templated example.
+
+        .. code-block:: python
+
+           instance = DocCodeTemplateInt()
+        """
+    )
 
 
 def test_docstrings_enum():
