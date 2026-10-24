@@ -144,6 +144,11 @@ class OverloadData:
     #: Text to append to the (autoconverted) docstring for the function
     doc_append: Optional[str] = None
 
+    #: Python examples replacing source code blocks in order. Null entries
+    #: preserve blocks; an empty list disables inherited replacements.
+    #: See :ref:`doc_code_blocks` for count checking and conflict rules.
+    doc_code_blocks: Optional[List[Optional[str]]] = None
+
     #: Disallow implicit conversions from None for all parameters. See also
     #: ``disable_none`` in ParamData.
     disable_none: Optional[bool] = None
@@ -300,6 +305,9 @@ class PropData:
     #: Docstring for the property (only available on class properties)
     doc: Optional[str] = None
 
+    #: Ordered Python example replacements; see :ref:`doc_code_blocks`.
+    doc_code_blocks: Optional[List[Optional[str]]] = None
+
     #: Text to append to the (autoconverted) docstring
     doc_append: Optional[str] = None
 
@@ -315,6 +323,9 @@ class EnumValue:
     #: Docstring for the enum value
     doc: Optional[str] = None
 
+    #: Ordered Python example replacements; see :ref:`doc_code_blocks`.
+    doc_code_blocks: Optional[List[Optional[str]]] = None
+
     #: Text to append to the (autoconverted) docstring
     doc_append: Optional[str] = None
 
@@ -323,6 +334,9 @@ class EnumValue:
 class EnumData:
     #: Set your own docstring for the enum
     doc: Optional[str] = None
+
+    #: Ordered Python example replacements; see :ref:`doc_code_blocks`.
+    doc_code_blocks: Optional[List[Optional[str]]] = None
 
     #: Text to append to the (autoconverted) docstring
     doc_append: Optional[str] = None
@@ -358,6 +372,9 @@ class EnumData:
 class ClassData:
     #: Docstring for the class
     doc: Optional[str] = None
+
+    #: Ordered Python example replacements; see :ref:`doc_code_blocks`.
+    doc_code_blocks: Optional[List[Optional[str]]] = None
 
     #: Text to append to the (autoconverted) docstring
     doc_append: Optional[str] = None

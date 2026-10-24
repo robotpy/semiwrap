@@ -113,6 +113,8 @@ class HasDoc(Protocol):
     def doc(self) -> typing.Optional[str]: ...
     @property
     def doc_append(self) -> typing.Optional[str]: ...
+    @property
+    def doc_code_blocks(self) -> typing.Optional[typing.List[typing.Optional[str]]]: ...
 
 
 class HasNameData(Protocol):
@@ -461,7 +463,13 @@ class AutowrapVisitor:
 
         scope_var = self._get_module_var(data)
         fctx = self._on_fn_or_method(
-            fn, data, fn_name, scope_var, False, overload_tracker
+            fn,
+            data,
+            fn_name,
+            scope_var,
+            False,
+            overload_tracker,
+            declaration=f"{state.user_data}::{fn_name}",
         )
         fctx.namespace = state.user_data
         self.hctx.functions.append(fctx)
@@ -603,7 +611,12 @@ class AutowrapVisitor:
                         strip_prefixes,
                         name_transform=self.enum_value_name_transform,
                     ),
-                    doc=self._process_doc(v.doxygen, v_data, append_prefix="  "),
+                    doc=self._process_doc(
+                        v.doxygen,
+                        v_data,
+                        append_prefix="  ",
+                        declaration=f"{full_cpp_name}::{name}",
+                    ),
                 )
             )
 
@@ -616,7 +629,9 @@ class AutowrapVisitor:
                 full_cpp_name=full_cpp_name,
                 py_name=py_name,
                 values=values,
-                doc=self._process_doc(enum.doxygen, enum_data),
+                doc=self._process_doc(
+                    enum.doxygen, enum_data, declaration=full_cpp_name
+                ),
                 arithmetic=enum_data.arithmetic,
                 inline_code=enum_data.inline_code,
             )
@@ -766,7 +781,7 @@ class AutowrapVisitor:
             # bad assumption? probably
             is_polymorphic = len(class_decl.bases) > 0
 
-        doc = self._process_doc(class_decl.doxygen, class_data)
+        doc = self._process_doc(class_decl.doxygen, class_data, declaration=cls_key)
         py_name = self._make_py_name(cls_name, class_data)
 
         constants: typing.List[typing.Tuple[str, str]] = []
@@ -1031,7 +1046,9 @@ class AutowrapVisitor:
         else:
             prop_readonly = propdata.access == PropAccess.readonly
 
-        doc = self._process_doc(f.doxygen, propdata)
+        doc = self._process_doc(
+            f.doxygen, propdata, declaration=f"{state.user_data.cls_key}::{prop_name}"
+        )
 
         array_size = None
         is_array = False
@@ -1148,6 +1165,7 @@ class AutowrapVisitor:
             cdata.ctx.scope_var,
             state.access != "public",
             overload_tracker,
+            declaration=f"{cdata.cls_key}::{method_name}",
         )
 
         # Update class-specific method attributes
@@ -1400,6 +1418,8 @@ class AutowrapVisitor:
         scope_var: str,
         internal: bool,
         overload_tracker: OverloadTracker,
+        *,
+        declaration: str,
     ) -> FunctionContext:
         # if cpp_code is specified, don't release the gil unless the user
         # specifically asks for it
@@ -1475,7 +1495,11 @@ class AutowrapVisitor:
             if data.internal or internal:
                 py_name = f"_{py_name}"
 
-        doc = self._process_doc(fn.doxygen, data, param_remap=param_remap)
+        if data.doc_code_blocks:
+            declaration += f"({self.gendata._get_function_signature(fn)})"
+        doc = self._process_doc(
+            fn.doxygen, data, param_remap=param_remap, declaration=declaration
+        )
 
         # Allow the user to override our auto-detected keepalives
         if data.keepalive is not None:
@@ -1995,19 +2019,61 @@ class AutowrapVisitor:
         data: HasDoc,
         append_prefix: str = "",
         param_remap: typing.Dict[str, str] = {},
+        *,
+        declaration: str,
     ) -> Documentation:
         doc = ""
+        replacements = data.doc_code_blocks
+        location = f"{self.hctx.rel_fname}: {declaration}"
+        block_count = 0
+
+        if replacements:
+            if data.doc is not None:
+                raise ValueError(
+                    f"{location}: doc and doc_code_blocks cannot be combined"
+                )
+            for index, text in enumerate(replacements):
+                if text is not None and not text.strip():
+                    raise ValueError(
+                        f"{location}: doc_code_blocks[{index}] must be nonempty; "
+                        "use null to preserve a block"
+                    )
+
+        def replace_block(
+            block: sphinxify.CodeBlock,
+        ) -> typing.Optional[sphinxify.CodeBlockReplacement]:
+            nonlocal block_count
+            block_count += 1
+            # Finish counting even if the supplied list is too short, so the
+            # error reports the actual count instead of an indexing failure.
+            if replacements and block.index < len(replacements):
+                text = replacements[block.index]
+                if text is not None:
+                    return sphinxify.CodeBlockReplacement(text.rstrip("\n"), "python")
+            return None
 
         if data.doc is not None:
             doc = data.doc
         elif doxygen:
-            d = sphinxify.Doc.from_comment(doxygen)
+            try:
+                d = sphinxify.Doc.from_comment(
+                    doxygen,
+                    code_block_transform=replace_block if replacements else None,
+                )
+            except ValueError as e:
+                raise ValueError(f"{location}: {e}") from e
             if param_remap:
                 for param in d.params:
                     new_name = param_remap.get(param.name)
                     if new_name:
                         param.name = new_name
             doc = str(d)
+
+        if replacements and block_count != len(replacements):
+            raise ValueError(
+                f"{location}: doc_code_blocks configured {len(replacements)} "
+                f"replacements but found {block_count} source blocks"
+            )
 
         if data.doc_append is not None:
             doc += f"\n{append_prefix}" + data.doc_append.replace(
