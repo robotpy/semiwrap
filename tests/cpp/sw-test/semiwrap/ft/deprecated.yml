@@ -1,0 +1,25 @@
+functions:
+  fnDeprecated:
+  fnNotDeprecated:
+  fnDeprecatedMultiLiteral:
+  fnDeprecatedNoMessage:
+classes:
+  DeprecatedMembers:
+    attributes:
+      notDeprecatedField:
+    methods:
+      DeprecatedMembers:
+        overloads:
+          "":
+          int:
+      deprecatedMethod:
+      deprecatedStaticMethod:
+      overloaded:
+        overloads:
+          int:
+          double:
+      deprecatedVirtual:
+      callDeprecatedVirtual:
+  DeprecatedField:
+    attributes:
+      deprecatedField:
