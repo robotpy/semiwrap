@@ -30,6 +30,7 @@ from cxxheaderparser.tokfmt import tokfmt
 from cxxheaderparser.types import (
     AnonymousName,
     Array,
+    Attribute,
     ClassDecl,
     Concept,
     DecoratedType,
@@ -287,6 +288,25 @@ def _fmt_array_size(t: Array) -> typing.Optional[int]:
             return int(sz)
         except ValueError:
             pass
+
+    return None
+
+
+def _get_deprecated(attrs: typing.List[Attribute], name: str) -> typing.Optional[str]:
+    """
+    If a deprecated attribute is present, returns the C++ string literal(s)
+    containing the deprecation message
+    """
+    for attr in attrs:
+        if attr.name != "deprecated":
+            continue
+
+        if attr.value is not None:
+            toks = [tok.value for tok in attr.value.tokens]
+            if toks and all(tok.endswith('"') for tok in toks):
+                return " ".join(toks)
+
+        return f'"{name} is deprecated"'
 
     return None
 
@@ -1072,6 +1092,7 @@ class AutowrapVisitor:
                 reference=isinstance(f.type, Reference),
                 static=f.static,
                 bitfield=f.bits is not None,
+                deprecated=_get_deprecated(f.attributes, py_name),
             )
         )
 
@@ -1170,6 +1191,8 @@ class AutowrapVisitor:
 
         # Update class-specific method attributes
         fctx.is_constructor = is_constructor
+        if is_constructor and fctx.deprecated:
+            cctx.has_deprecated_constructor = True
         if is_constructor and method_data.rename and not method_data.cpp_code:
             fctx.cpp_return_type = cctx.full_cpp_name
             self._on_fn_make_lambda(method_data, fctx)
@@ -1611,6 +1634,7 @@ class AutowrapVisitor:
             virtual_xform=data.virtual_xform,
             is_overloaded=overload_tracker,
             _fn=fn,
+            deprecated=_get_deprecated(fn.attributes, py_name),
         )
 
         # Generate a special lambda wrapper only when needed

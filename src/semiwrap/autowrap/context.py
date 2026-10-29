@@ -287,6 +287,10 @@ class FunctionContext:
     #: True if this is a static method
     is_static_method: bool = False
 
+    #: If the C++ function is marked deprecated, this is the C++ string
+    #: literal(s) containing the deprecation message
+    deprecated: typing.Optional[str] = None
+
     # Only compute the trampoline signature once, used as cache by
     # trampoline_signature function
     _trampoline_signature: typing.Optional[str] = None
@@ -309,6 +313,10 @@ class PropContext:
     reference: bool
     static: bool
     bitfield: bool
+
+    #: If the C++ field is marked deprecated, this is the C++ string
+    #: literal(s) containing the deprecation message
+    deprecated: typing.Optional[str] = None
 
 
 @dataclass
@@ -469,6 +477,9 @@ class ClassContext:
     # Not used in rendering functions but used elsewhere
     has_constructor: bool = False
     is_polymorphic: bool = False
+
+    #: True if any wrapped constructor is deprecated
+    has_deprecated_constructor: bool = False
 
     #: was x_has_trampoline
     trampoline: typing.Optional[TrampolineData] = None

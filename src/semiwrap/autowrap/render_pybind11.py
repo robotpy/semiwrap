@@ -63,6 +63,9 @@ def _genmethod(
         r.writeln(f"\n#ifndef {fn.ifndef}")
         r.rel_indent(2)
 
+    if fn.deprecated:
+        r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
+
     if fn.operator:
         r.writeln(f"{varname}.def({fn.cpp_code}")
         arg_params = []
@@ -170,12 +173,18 @@ def _genmethod(
     if fn.return_value_policy:
         other_params.append(fn.return_value_policy)
 
+    if fn.deprecated:
+        other_params.append(f"SEMIWRAP_DEPRECATED({fn.deprecated})")
+
     if other_params:
         r.writeln(f"  , {', '.join(other_params)}")
 
     if fn.doc:
         r.writeln(mkdoc("  , py::doc(", fn.doc, ")"))
     r.writeln(");")
+
+    if fn.deprecated:
+        r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
 
     if fn.ifdef:
         r.rel_indent(-2)
@@ -250,6 +259,15 @@ def genmethod(
 
 
 def _genprop(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
+    if prop.deprecated:
+        r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
+        _genprop_impl(r, varname, qualname, prop)
+        r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
+    else:
+        _genprop_impl(r, varname, qualname, prop)
+
+
+def _genprop_impl(r: RenderBuffer, varname: str, qualname: str, prop: PropContext):
     doc = ""
     if prop.doc:
         doc = mkdoc(", py::doc(", prop.doc, ")")
@@ -353,15 +371,18 @@ def cls_decl(r: RenderBuffer, cls: ClassContext):
     if cls.trampoline:
         tctx = cls.trampoline
         # py::trampoline_self_life_support
-        r.write_trim(
-            f"""
-            struct {tctx.var} : {tctx.full_cpp_name}, py::trampoline_self_life_support {{
-                using RpyBase = {tctx.full_cpp_name};
-                using RpyBase::RpyBase;
-            }};
-
-        """
+        r.writeln(
+            f"struct {tctx.var} : {tctx.full_cpp_name}, py::trampoline_self_life_support {{"
         )
+        with r.indent():
+            r.writeln(f"using RpyBase = {tctx.full_cpp_name};")
+            if cls.has_deprecated_constructor:
+                r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
+            r.writeln("using RpyBase::RpyBase;")
+            if cls.has_deprecated_constructor:
+                r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
+        r.writeln("};")
+        r.writeln()
         r.writeln(
             f'static_assert(std::is_abstract<{tctx.var}>::value == false, "{cls.full_cpp_name} " SEMIWRAP_BAD_TRAMPOLINE);'
         )

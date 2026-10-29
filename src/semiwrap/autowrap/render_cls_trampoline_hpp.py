@@ -214,9 +214,9 @@ def _render_cls_trampoline_scoped(
 
             template <typename PyTrampolineBase{ precomma(template_parameter_list) }, typename PyTrampolineCfg>
             struct PyTrampoline_{ cls.cpp_name } : PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg> {{
-              using PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg>::PyTrampolineBase_{ cls.cpp_name };
         """
         )
+        inherit_ctors = f"using PyTrampolineBase_{ cls.cpp_name }<PyTrampolineBase{ precomma(template_argument_list) }, PyTrampolineCfg>::PyTrampolineBase_{ cls.cpp_name };"
 
     else:
         r.writeln()
@@ -224,11 +224,17 @@ def _render_cls_trampoline_scoped(
             f"""
             template <typename PyTrampolineBase{ precomma(template_parameter_list) }, typename PyTrampolineCfg>
             struct PyTrampoline_{ cls.cpp_name } : PyTrampolineBase {{
-              using PyTrampolineBase::PyTrampolineBase;
         """
         )
+        inherit_ctors = "using PyTrampolineBase::PyTrampolineBase;"
 
     with r.indent():
+        if cls.has_deprecated_constructor:
+            r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
+        r.writeln(inherit_ctors)
+        if cls.has_deprecated_constructor:
+            r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
+
         for ccls in cls.child_classes:
             if not ccls.template:
                 r.writeln(
@@ -261,6 +267,8 @@ def _render_cls_trampoline_scoped(
                 f"\n#ifdef SWGEN_ENABLE_{cls.full_cpp_name_identifier}_PROTECTED_CONSTRUCTORS"
             )
             with r.indent():
+                if fn.deprecated:
+                    r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
                 all_decls = ", ".join(p.decl for p in fn.all_params)
                 all_names = ", ".join(p.arg_name for p in fn.all_params)
                 r.writeln(f"PyTrampoline_{cls.cpp_name}({all_decls}) :")
@@ -273,6 +281,8 @@ def _render_cls_trampoline_scoped(
                     r.writeln(f"  PyTrampolineBase({all_names})")
 
                 r.writeln("{}")
+                if fn.deprecated:
+                    r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
             r.writeln("#endif")
 
         #
@@ -295,19 +305,27 @@ def _render_cls_trampoline_scoped(
             with r.indent():
                 r.writeln(f"#ifndef SWGEN_UDISABLE_{ using_signature(cls, fn) }")
                 with r.indent():
+                    if fn.deprecated:
+                        r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
                     r.write_trim(
                         f"""
                         using { cls.full_cpp_name }::{ fn.cpp_name };
                         #define SWGEN_UDISABLE_{ using_signature(cls, fn) }
                     """
                     )
+                    if fn.deprecated:
+                        r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
                 r.writeln("#endif")
             r.writeln("#endif")
 
         if cls.protected_properties:
             r.writeln()
             for prop in cls.protected_properties:
+                if prop.deprecated:
+                    r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
                 r.writeln(f"using {cls.full_cpp_name}::{prop.cpp_name};")
+                if prop.deprecated:
+                    r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
 
         if trampoline.inline_code:
             r.writeln()
@@ -325,6 +343,8 @@ def _render_cls_trampoline_virtual_method(
         all_decls = ", ".join(p.decl for p in fn.all_params)
         const = " const" if fn.const else ""
         decl = f"{fn.cpp_return_type} {fn.cpp_name}({all_decls}){const}{fn.ref_qualifiers} override {{"
+        if fn.deprecated:
+            r.writeln("SEMIWRAP_IGNORE_DEPRECATED_PUSH")
         r.writeln(decl)
 
         with r.indent():
@@ -383,6 +403,8 @@ def _render_cls_trampoline_virtual_method(
                     )
 
         r.writeln("}")
+        if fn.deprecated:
+            r.writeln("SEMIWRAP_IGNORE_DEPRECATED_POP")
     r.writeln("#endif")
 
 

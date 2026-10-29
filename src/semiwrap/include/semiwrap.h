@@ -9,6 +9,69 @@ namespace py = pybind11;
 // Use this to release the gil
 typedef py::call_guard<py::gil_scoped_release> release_gil;
 
+//
+// Deprecated APIs
+//
+
+// Suppress deprecation warnings when binding deprecated C++ APIs
+#if defined(__clang__)
+#define SEMIWRAP_IGNORE_DEPRECATED_PUSH \
+    _Pragma("clang diagnostic push") \
+    _Pragma("clang diagnostic ignored \"-Wdeprecated-declarations\"")
+#define SEMIWRAP_IGNORE_DEPRECATED_POP _Pragma("clang diagnostic pop")
+#elif defined(__GNUC__)
+#define SEMIWRAP_IGNORE_DEPRECATED_PUSH \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define SEMIWRAP_IGNORE_DEPRECATED_POP _Pragma("GCC diagnostic pop")
+#elif defined(_MSC_VER)
+#define SEMIWRAP_IGNORE_DEPRECATED_PUSH \
+    __pragma(warning(push)) \
+    __pragma(warning(disable : 4996))
+#define SEMIWRAP_IGNORE_DEPRECATED_POP __pragma(warning(pop))
+#else
+#define SEMIWRAP_IGNORE_DEPRECATED_PUSH
+#define SEMIWRAP_IGNORE_DEPRECATED_POP
+#endif
+
+namespace semiwrap {
+
+// pybind11 function attribute that emits a python DeprecationWarning when
+// the bound function is called. Msg is a type with a static value() function
+// that returns the message.
+template <typename Msg>
+struct deprecated {};
+
+// The message is carried by a unique local type so that this works without
+// C++20 class-type non-type template parameters
+#define SEMIWRAP_DEPRECATED(msg) \
+    [] { \
+        struct semiwrap_deprecated_msg { \
+            static const char *value() { return msg; } \
+        }; \
+        return semiwrap::deprecated<semiwrap_deprecated_msg>(); \
+    }()
+
+} // namespace semiwrap
+
+PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
+PYBIND11_NAMESPACE_BEGIN(detail)
+
+template <typename Msg>
+struct process_attribute<semiwrap::deprecated<Msg>>
+    : process_attribute_default<semiwrap::deprecated<Msg>> {
+    // called with the GIL held after arguments are converted, before any
+    // call guard (such as release_gil) is applied
+    static void precall(function_call &) {
+        if (PyErr_WarnEx(PyExc_DeprecationWarning, Msg::value(), 1) != 0) {
+            throw error_already_set();
+        }
+    }
+};
+
+PYBIND11_NAMESPACE_END(detail)
+PYBIND11_NAMESPACE_END(PYBIND11_NAMESPACE)
+
 // empty trampoline configuration base
 namespace swgen {
 struct EmptyTrampolineCfg {};
