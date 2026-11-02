@@ -481,6 +481,9 @@ class ClassContext:
     has_constructor: bool = False
     is_polymorphic: bool = False
 
+    #: Structural eligibility for generating a data-only class representation
+    auto_repr: bool = False
+
     #: True if any wrapped constructor is deprecated
     has_deprecated_constructor: bool = False
 

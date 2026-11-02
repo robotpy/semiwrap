@@ -31,6 +31,7 @@ SOMETHING_DEFINED = "1"
 
 [tool.semiwrap.extension_modules."swtest.ft._ft".headers]
 abstract = "abstract.h"
+auto_repr = "auto_repr.h"
 base_qualname = "base_qualname.h"
 base_qualname_hidden = "base_qualname_hidden.h"
 buffers = "buffers.h"

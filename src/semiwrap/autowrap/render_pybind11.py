@@ -445,6 +445,38 @@ def cls_def_enum(r: RenderBuffer, cctx: ClassContext, varname: str):
             enum_def(r, cctx.var_name, enum)
 
 
+def _genrepr(r: RenderBuffer, cls: ClassContext, varname: str):
+    r.writeln(f'if (!{varname}.attr("__dict__").contains("__repr__")) {{')
+    with r.indent():
+        r.writeln(f'{varname}.def("__repr__", [](py::object self) {{')
+        with r.indent():
+            r.writeln(
+                'std::string result = py::str(py::type::of(self).attr("__qualname__"));'
+            )
+            r.writeln('result += "(";')
+            separator = ""
+            for prop in cls.public_properties:
+                # Match _genprop_impl: unresolved array sizes are not bound.
+                if prop.static or (prop.array and not prop.array_size):
+                    continue
+                r.writeln(f'result += "{separator}{prop.py_name}=";')
+                r.writeln(
+                    f'result += py::repr(self.attr("{prop.py_name}")).cast<std::string>();'
+                )
+                separator = ", "
+            r.writeln('return result + ")";')
+        r.writeln("});")
+        # Match dataclasses' recursion protection. The Python wrapper also lets
+        # later template/header inline .def("__repr__", ...) replace this default
+        # instead of appending an unreachable overload to a pybind11 function.
+        r.writeln(
+            f'{varname}.attr("__repr__") = '
+            'py::module_::import("reprlib").attr("recursive_repr")()('
+            f'{varname}.attr("__repr__"));'
+        )
+    r.writeln("}")
+
+
 def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
     if cls.vcheck_fns:
         for fn in cls.vcheck_fns:
@@ -493,6 +525,9 @@ def cls_def(r: RenderBuffer, cls: ClassContext, varname: str):
         with r.indent():
             r.write_trim(cls.inline_code)
         r.writeln(";")
+
+    if cls.auto_repr:
+        _genrepr(r, cls, varname)
 
     if cls.unnamed_enums:
         r.writeln()
