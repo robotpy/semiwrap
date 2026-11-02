@@ -836,6 +836,11 @@ class AutowrapVisitor:
             inline_code=class_data.inline_code or "",
             force_multiple_inheritance=class_data.force_multiple_inheritance,
             is_polymorphic=is_polymorphic,
+            auto_repr=(
+                class_data.auto_repr
+                and class_decl.classkey in ("class", "struct")
+                and not class_decl.bases
+            ),
         )
 
         # Add to parent class or global class list
@@ -1010,6 +1015,9 @@ class AutowrapVisitor:
         return bases, pybase_params
 
     def on_class_field(self, state: AWClassBlockState, f: Field) -> None:
+        if not f.static and f.access != "public":
+            state.user_data.ctx.auto_repr = False
+
         # Ignore unnamed fields
         if not f.name:
             return
@@ -1109,6 +1117,8 @@ class AutowrapVisitor:
         # on_class_end if the answers are right
         cdata = state.user_data
         cctx = cdata.ctx
+        # Even ignored/non-public methods disqualify a plain-data class.
+        cctx.auto_repr = False
 
         if method.constructor:
             cctx.has_constructor = True

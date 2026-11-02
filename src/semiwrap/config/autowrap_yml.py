@@ -426,6 +426,12 @@ class ClassData:
     #: Disable generating a trampoline for this class
     force_no_trampoline: bool = False
 
+    #: Automatically generate a dataclass-style __repr__ for data-only classes
+    #: with public instance fields, no bases, and no declared methods (including
+    #: constructors/destructors). Ignored/static fields are omitted. Existing
+    #: custom __repr__ bindings are preserved. Set false to disable generation.
+    auto_repr: bool = True
+
     #: Disable generating a default constructor for this class
     force_no_default_constructor: bool = False
 
