@@ -1,3 +1,8 @@
+inline_code_namespace: ""
+inline_code: |
+  enum_GEnum.def("custom_value", [](GEnum value) { return int(value) + 10; });
+  enum_NSGCEnum.def("custom_value", [](enum_ns::NSGCEnum value) { return int(value) + 10; });
+
 enums:
   StripPrefixEnum:
     value_prefix: STRIP_

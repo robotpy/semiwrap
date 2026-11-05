@@ -28,12 +28,20 @@ def _absolute_qualname(qualname: str) -> str:
     return qualname if qualname.startswith("::") else f"::{qualname}"
 
 
-def _enum_helper_name(hctx: HeaderContext, index: int) -> str:
+def _enum_helper_name(hctx: HeaderContext, enum: EnumContext, index: int) -> str:
+    if enum.cpp_name:
+        return f"semiwrap_enum_{enum.full_cpp_name_identifier}"
     return f"semiwrap_enum_{hctx.hname}_{index}"
 
 
+def _enum_helper_var_name(enum: EnumContext, index: int) -> str:
+    if enum.cpp_name:
+        return f"semiwrap_enum_helper_{enum.full_cpp_name_identifier}"
+    return f"enum{index}"
+
+
 def _enum_helper_qualname(hctx: HeaderContext, enum: EnumContext, index: int) -> str:
-    helper_name = _enum_helper_name(hctx, index)
+    helper_name = _enum_helper_name(hctx, enum, index)
     namespace = normalize_namespace(enum.namespace)
     return f"{namespace}::{helper_name}" if namespace else helper_name
 
@@ -44,23 +52,24 @@ def _render_enum_helper(
     enum: EnumContext,
     index: int,
 ) -> None:
-    helper_name = _enum_helper_name(hctx, index)
+    helper_name = _enum_helper_name(hctx, enum, index)
+    var_name = enum.var_name if enum.cpp_name else "value"
     with namespace_scope(r, enum.namespace, anonymous=True):
         r.writeln(f"struct {helper_name} {{")
         with r.indent():
             r.writeln("py::module &m;")
-            rpybind11.enum_decl(r, enum, "value")
+            rpybind11.enum_decl(r, enum, var_name)
             r.writeln(f"{helper_name}(py::module &m, py::module &scope) :")
             with r.indent():
                 r.writeln("m(m),")
-                r.writeln(f"value({rpybind11.enum_init_args('scope', enum)})")
+                r.writeln(f"{var_name}({rpybind11.enum_init_args('scope', enum)})")
             r.writeln("{}")
             r.writeln("void finish() {")
             with r.indent():
                 # enum_def emits fluent suffixes, so provide their receiver here.
-                r.writeln("value")
+                r.writeln(var_name)
                 with r.indent():
-                    rpybind11.enum_def(r, "value", enum)
+                    rpybind11.enum_def(r, var_name, enum)
             r.writeln("}")
         r.writeln(f"}}; // struct {helper_name}")
 
@@ -241,10 +250,15 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
 
             # enums
             for index, enum in enumerate(hctx.enums, start=1):
+                helper_var = _enum_helper_var_name(enum, index)
                 r.writeln(
                     f"{_absolute_qualname(_enum_helper_qualname(hctx, enum, index))} "
-                    f"enum{index};"
+                    f"{helper_var};"
                 )
+                if enum.cpp_name:
+                    r.writeln(
+                        f"decltype({helper_var}.{enum.var_name}) &{enum.var_name};"
+                    )
 
             # template decls
             for tmpl_data in hctx.template_instances:
@@ -277,7 +291,10 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                     r.writeln(f'{vname}(m.def_submodule("{pkg}")),')
 
                 for index, enum in enumerate(hctx.enums, start=1):
-                    r.writeln(f"enum{index}(m, {enum.scope_var}),")
+                    helper_var = _enum_helper_var_name(enum, index)
+                    r.writeln(f"{helper_var}(m, {enum.scope_var}),")
+                    if enum.cpp_name:
+                        r.writeln(f"{enum.var_name}({helper_var}.{enum.var_name}),")
 
                 for tmpl_data in hctx.template_instances:
                     if not tmpl_data.matched:
@@ -303,7 +320,7 @@ def render_wrapped_cpp(hctx: HeaderContext) -> str:
                     # and then we dont need to figure out class dependencies for enum arguments
 
                     for index, enum in enumerate(hctx.enums, start=1):
-                        r.writeln(f"enum{index}.finish();")
+                        r.writeln(f"{_enum_helper_var_name(enum, index)}.finish();")
 
                     for cls in hctx.classes:
                         if cls.template is None:
