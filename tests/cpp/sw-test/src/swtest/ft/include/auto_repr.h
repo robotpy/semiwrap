@@ -56,6 +56,22 @@ private:
   int hidden = 2;
 };
 
+class ReprForced : public ReprClass {
+public:
+  ReprForced() : count(7) {}
+  int count;
+  int ignored = 99;
+  inline static int total = 100;
+  int getCount() const { return count; }
+private:
+  int hidden = 8;
+};
+
+struct ReprMethodCustom {
+  int value = 1;
+  std::string repr() const { return "method custom repr"; }
+};
+
 struct ReprNode {
   ReprNode *next = nullptr;
 };
@@ -65,7 +81,10 @@ struct ReprOuter {
 };
 
 template <typename T>
-struct ReprTemplate { T value{}; };
+struct ReprTemplate {
+  T value{};
+  T getValue() const { return value; }
+};
 
 template <typename T>
 struct ReprTemplateCustom { T value{}; };

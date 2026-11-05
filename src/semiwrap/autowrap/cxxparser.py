@@ -839,8 +839,8 @@ class AutowrapVisitor:
             is_polymorphic=is_polymorphic,
             auto_repr=(
                 class_data.auto_repr
-                and class_decl.classkey in ("class", "struct")
-                and not class_decl.bases
+                if class_data.auto_repr is not None
+                else class_decl.classkey in ("class", "struct") and not class_decl.bases
             ),
         )
 
@@ -1016,7 +1016,11 @@ class AutowrapVisitor:
         return bases, pybase_params
 
     def on_class_field(self, state: AWClassBlockState, f: Field) -> None:
-        if not f.static and f.access != "public":
+        if (
+            state.user_data.data.auto_repr is None
+            and not f.static
+            and f.access != "public"
+        ):
             state.user_data.ctx.auto_repr = False
 
         # Ignore unnamed fields
@@ -1118,8 +1122,10 @@ class AutowrapVisitor:
         # on_class_end if the answers are right
         cdata = state.user_data
         cctx = cdata.ctx
-        # Even ignored/non-public methods disqualify a plain-data class.
-        cctx.auto_repr = False
+        # Even ignored/non-public methods disqualify automatic detection,
+        # but do not override an explicit auto_repr setting.
+        if cdata.data.auto_repr is None:
+            cctx.auto_repr = False
 
         if method.constructor:
             cctx.has_constructor = True

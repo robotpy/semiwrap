@@ -5,6 +5,7 @@ classes:
       value:
       valid:
   ReprClass:
+    auto_repr:
     attributes:
       value:
   ReprRenamed:
@@ -31,6 +32,7 @@ classes:
     attributes:
       value:
   ReprCustom:
+    auto_repr: true
     attributes:
       value:
     inline_code: |
@@ -39,6 +41,7 @@ classes:
     attributes:
       value:
   ReprMethod:
+    auto_repr:
     attributes:
       value:
     methods:
@@ -60,6 +63,24 @@ classes:
   ReprPrivate:
     attributes:
       value:
+  ReprForced:
+    auto_repr: true
+    is_polymorphic: false
+    attributes:
+      count:
+      ignored:
+        ignore: true
+      total:
+    methods:
+      ReprForced:
+      getCount:
+  ReprMethodCustom:
+    auto_repr: true
+    attributes:
+      value:
+    methods:
+      repr:
+        rename: __repr__
   ReprNode:
     attributes:
       next:
@@ -68,9 +89,12 @@ classes:
     attributes:
       value:
   ReprTemplate:
+    auto_repr: true
     template_params: [T]
     attributes:
       value:
+    methods:
+      getValue:
   ReprTemplateCustom:
     template_params: [T]
     attributes:
