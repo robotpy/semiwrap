@@ -446,34 +446,35 @@ def cls_def_enum(r: RenderBuffer, cctx: ClassContext, varname: str):
 
 
 def _genrepr(r: RenderBuffer, cls: ClassContext, varname: str):
+    # Match _genprop_impl: unresolved array sizes are not bound.
+    props = [
+        prop
+        for prop in cls.public_properties
+        if not prop.static and not (prop.array and not prop.array_size)
+    ]
+    fields = ", ".join(
+        prop.py_name.replace("{", "{{").replace("}", "}}") + "={!r}" for prop in props
+    )
+    repr_format = "<{}" + (f" {fields}" if fields else "") + ">"
     r.writeln(f'if (!{varname}.attr("__dict__").contains("__repr__")) {{')
     with r.indent():
-        r.writeln(f'{varname}.def("__repr__", [](py::object self) {{')
-        with r.indent():
-            r.writeln(
-                'std::string result = py::str(py::type::of(self).attr("__qualname__"));'
-            )
-            r.writeln('result += "(";')
-            separator = ""
-            for prop in cls.public_properties:
-                # Match _genprop_impl: unresolved array sizes are not bound.
-                if prop.static or (prop.array and not prop.array_size):
-                    continue
-                r.writeln(f'result += "{separator}{prop.py_name}=";')
-                r.writeln(
-                    f'result += py::repr(self.attr("{prop.py_name}")).cast<std::string>();'
-                )
-                separator = ", "
-            r.writeln('return result + ")";')
-        r.writeln("});")
         # Match dataclasses' recursion protection. The Python wrapper also lets
         # later template/header inline .def("__repr__", ...) replace this default
         # instead of appending an unreachable overload to a pybind11 function.
         r.writeln(
             f'{varname}.attr("__repr__") = '
             'py::module_::import("reprlib").attr("recursive_repr")()('
-            f'{varname}.attr("__repr__"));'
         )
+        with r.indent():
+            r.writeln("py::cpp_function([](py::object self) {")
+            with r.indent():
+                r.writeln(f'return py::str("{repr_format}").format(')
+                args = ['py::type::of(self).attr("__qualname__")']
+                args.extend(f'self.attr("{prop.py_name}")' for prop in props)
+                with r.indent():
+                    r.writeln(",\n".join(args))
+                r.writeln(");")
+            r.writeln(f'}}, py::name("__repr__"), py::is_method({varname})));')
     r.writeln("}")
 
 

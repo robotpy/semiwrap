@@ -32,8 +32,9 @@ def _parse(tmp_path, source, settings=None):
         "struct Data { int value; private: static int count; };",
     ],
 )
-def test_plain_data_qualifies(tmp_path, source):
-    assert _parse(tmp_path, source).auto_repr
+@pytest.mark.parametrize("settings", [{}, {"auto_repr": None}, {"auto_repr": True}])
+def test_plain_data_qualifies(tmp_path, source, settings):
+    assert _parse(tmp_path, source, settings).auto_repr
 
 
 @pytest.mark.parametrize(
@@ -52,24 +53,37 @@ def test_plain_data_qualifies(tmp_path, source):
         "protected: int hidden;",
     ],
 )
-def test_non_data_declarations_do_not_qualify(tmp_path, member):
-    assert not _parse(tmp_path, "struct Data { int value; " + member + " };").auto_repr
+@pytest.mark.parametrize("auto_repr", [None, False, True])
+def test_auto_repr_setting_controls_non_data_declarations(tmp_path, member, auto_repr):
+    ctx = _parse(
+        tmp_path,
+        "struct Data { int value; " + member + " };",
+        {"auto_repr": auto_repr},
+    )
+    assert ctx.auto_repr is (auto_repr is True)
 
 
-def test_ignored_method_still_disqualifies(tmp_path):
+@pytest.mark.parametrize(
+    "settings,expected", [({}, False), ({"auto_repr": True}, True)]
+)
+def test_ignored_method_respects_auto_repr_setting(tmp_path, settings, expected):
     ctx = _parse(
         tmp_path,
         "struct Data { int value; void method(); };",
-        {"methods": {"method": {"ignore": True}}},
+        {**settings, "methods": {"method": {"ignore": True}}},
     )
-    assert not ctx.auto_repr
+    assert ctx.auto_repr is expected
 
 
 @pytest.mark.parametrize("settings", [{}, {"ignored_bases": ["Base"]}])
-def test_bases_still_disqualify_when_ignored(tmp_path, settings):
-    assert not _parse(
-        tmp_path, "struct Data : Base { int value; };", settings
-    ).auto_repr
+@pytest.mark.parametrize("auto_repr", [None, False, True])
+def test_bases_respect_auto_repr_setting(tmp_path, settings, auto_repr):
+    ctx = _parse(
+        tmp_path,
+        "struct Data : Base { int value; };",
+        {**settings, "auto_repr": auto_repr},
+    )
+    assert ctx.auto_repr is (auto_repr is True)
 
 
 def test_auto_repr_can_be_disabled(tmp_path):
@@ -88,7 +102,5 @@ def test_repr_does_not_read_unbound_array_attributes(tmp_path, size):
     assert 'self.attr("samples")' not in generated
 
 
-def test_auto_repr_true_does_not_force_ineligible_type(tmp_path):
-    assert not _parse(
-        tmp_path, "struct Data { void method(); };", {"auto_repr": True}
-    ).auto_repr
+def test_default_auto_repr_does_not_force_ineligible_type(tmp_path):
+    assert not _parse(tmp_path, "struct Data { void method(); };").auto_repr
