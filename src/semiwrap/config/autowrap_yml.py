@@ -426,6 +426,16 @@ class ClassData:
     #: Disable generating a trampoline for this class
     force_no_trampoline: bool = False
 
+    #: Generate a field-based __repr__. None (YAML null, the default) automatically
+    #: enables it for data-only classes with public instance fields, no bases, and
+    #: no declared methods (including constructors/destructors). True enables it
+    #: regardless of those restrictions; false disables it. Only wrapped public
+    #: instance fields declared on this class are included, not inherited fields.
+    #: Existing custom __repr__ bindings are preserved. The format is
+    #: <Name field=value> (or <Name> without fields), not an evaluable constructor
+    #: expression. This does not generate a field-wise constructor.
+    auto_repr: Optional[bool] = None
+
     #: Disable generating a default constructor for this class
     force_no_default_constructor: bool = False
 
@@ -725,6 +735,13 @@ class AutowrapConfigYaml:
 
         if data is None:
             data = {}
+
+        # Explicit auto_repr: null selects the default. Remove it before the
+        # legacy normalizer turns null entries into empty configuration dicts.
+        if isinstance(data, dict) and isinstance(data.get("classes"), dict):
+            for class_data in data["classes"].values():
+                if isinstance(class_data, dict) and class_data.get("auto_repr") is None:
+                    class_data.pop("auto_repr", None)
 
         data = fix_yaml_dict(data)
 

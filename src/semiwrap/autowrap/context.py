@@ -478,6 +478,9 @@ class ClassContext:
     has_constructor: bool = False
     is_polymorphic: bool = False
 
+    #: Resolved decision to generate a representation (automatic or explicit)
+    auto_repr: bool = False
+
     #: True if any wrapped constructor is deprecated
     has_deprecated_constructor: bool = False
 
