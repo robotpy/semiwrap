@@ -1,0 +1,119 @@
+classes:
+  Reading:
+    attributes:
+      channel:
+      value:
+      valid:
+  ReprClass:
+    auto_repr:
+    attributes:
+      value:
+  ReprRenamed:
+    rename: ReprNamed
+    attributes:
+      first:
+        rename: start
+      ignored:
+        ignore: true
+      count:
+      text:
+      last:
+  ReprNested:
+    attributes:
+      reading:
+      values:
+  ReprArray:
+    attributes:
+      value:
+      samples:
+  ReprEmpty:
+  ReprDisabled:
+    auto_repr: false
+    attributes:
+      value:
+  ReprCustom:
+    auto_repr: true
+    attributes:
+      value:
+    inline_code: |
+      .def("__repr__", [](const ReprCustom &) { return "custom repr"; })
+  ReprGlobalCustom:
+    attributes:
+      value:
+  ReprMethod:
+    auto_repr:
+    attributes:
+      value:
+    methods:
+      method:
+        ignore: true
+  ReprConstructor:
+    attributes:
+      value:
+    methods:
+      ReprConstructor:
+  ReprDestructor:
+    attributes:
+      value:
+  ReprDerived:
+    is_polymorphic: false
+    ignored_bases: [ReprClass]
+    attributes:
+      other:
+  ReprPrivate:
+    attributes:
+      value:
+  ReprForced:
+    auto_repr: true
+    is_polymorphic: false
+    attributes:
+      count:
+      ignored:
+        ignore: true
+      total:
+    methods:
+      ReprForced:
+      getCount:
+  ReprMethodCustom:
+    auto_repr: true
+    attributes:
+      value:
+    methods:
+      repr:
+        rename: __repr__
+  ReprNode:
+    attributes:
+      next:
+  ReprOuter:
+  ReprOuter::Inner:
+    attributes:
+      value:
+  ReprTemplate:
+    auto_repr: true
+    template_params: [T]
+    attributes:
+      value:
+    methods:
+      getValue:
+  ReprTemplateCustom:
+    template_params: [T]
+    attributes:
+      value:
+    template_inline_code: |
+      cls_ReprTemplateCustom.def("__repr__", [](const ReprTemplateCustom<T> &) {
+        return "template custom repr";
+      });
+templates:
+  ReprInt:
+    qualname: ReprTemplate
+    params: [int]
+  ReprString:
+    qualname: ReprTemplate
+    params: [std::string]
+  ReprCustomInt:
+    qualname: ReprTemplateCustom
+    params: [int]
+inline_code: |
+  cls_ReprGlobalCustom.def("__repr__", [](const ReprGlobalCustom &) {
+    return "global custom repr";
+  });

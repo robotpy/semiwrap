@@ -87,6 +87,72 @@ add support for anonymous enums outside classes. Class-member enum bindings
 are unchanged.
 
 
+Automatic representations for data classes
+------------------------------------------
+
+By default, semiwrap automatically generates a field-based ``__repr__`` for
+plain-data classes and structs: no bases, no declared methods (including
+constructors and destructors), and only public instance fields. This is a
+structural rule, not C++'s strict POD definition, so fields such as strings and
+containers are allowed.
+Ignoring a method or base in YAML does not make a class eligible.
+
+For example, wrapping this struct:
+
+.. code-block:: c++
+
+   struct Reading {
+     int channel;
+     double value;
+     bool valid;
+   };
+
+produces representations like:
+
+.. code-block:: python
+
+   >>> reading = Reading()
+   >>> reading.channel, reading.value, reading.valid = 2, 3.5, True
+   >>> repr(reading)
+   '<Reading channel=2, value=3.5, valid=True>'
+
+Fields appear in declaration order using their Python names and Python ``repr``
+values. Only wrapped public instance fields declared on the class are included;
+inherited, ignored, and static fields are omitted. Empty classes produce ``<Name>``.
+The class name is its Python qualified name, including any enclosing class names.
+Recursive references are shown as ``...``, as with dataclasses. Explicit custom
+``__repr__`` bindings, including those added with inline code, take precedence.
+
+The angle brackets indicate a descriptive representation for inspection and
+logging, not an expression that reconstructs the object when passed to ``eval``.
+This does not generate a constructor accepting field values: semiwrap still
+supplies only its usual default constructor for these types (unless disabled).
+
+Disable generation for an individual class in its YAML configuration:
+
+.. code-block:: yaml
+
+   classes:
+     Reading:
+       auto_repr: false
+
+``auto_repr`` accepts three values:
+
+* ``null`` (Python ``None``, the default): use the plain-data detection described
+  above. Omitting the setting has the same effect.
+* ``false``: do not generate a representation.
+* ``true``: generate a representation even for classes with methods, constructors,
+  bases, or non-public fields. Field selection and custom repr precedence remain
+  unchanged.
+
+For example, to enable a representation for a class that has methods:
+
+.. code-block:: yaml
+
+   classes:
+     MyClass:
+       auto_repr: true
+
 Keyword-only default arguments
 ------------------------------
 
