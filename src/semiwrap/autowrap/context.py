@@ -73,6 +73,9 @@ class EnumContext:
     #: C++ name, including namespace/classname
     full_cpp_name: str
 
+    #: C++ name translated to an identifier, as for ClassContext
+    full_cpp_name_identifier: str
+
     #: Python name
     py_name: str
 

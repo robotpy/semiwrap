@@ -26,6 +26,11 @@ def test_enums():
     )
 
 
+def test_enum_header_inline_code():
+    assert ft.GEnum.GE1.custom_value() == 11
+    assert ft.NSGCEnum.NSGE2.custom_value() == 12
+
+
 def test_enum_strip_prefix():
     # 1 isn't a valid identifier, so it's not stripped
     assert ft.StripPrefixEnum.STRIP_1 == 1

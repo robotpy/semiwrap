@@ -569,7 +569,7 @@ class AutowrapVisitor:
                 return
 
             ctxlist = self.hctx.enums
-            var_name = f"enum{len(ctxlist)}"
+            var_name = f"enum_{ename}" if ename else f"enum{len(ctxlist)}"
             enum_scope = user_data
             enum_namespace = user_data
             scope_var = self._get_module_var(enum_data)
@@ -647,6 +647,7 @@ class AutowrapVisitor:
                 cpp_name=ename,
                 namespace=enum_namespace,
                 full_cpp_name=full_cpp_name,
+                full_cpp_name_identifier=full_cpp_name.translate(_qualname_trans),
                 py_name=py_name,
                 values=values,
                 doc=self._process_doc(
