@@ -640,6 +640,14 @@ class AutowrapVisitor:
                 )
             )
 
+        native = bool(ename) and (
+            enum_data.native
+            if enum_data.native is not None
+            else self.gendata.enum_native
+        )
+        if enum_data.is_flag and not native:
+            raise ValueError(f"{full_cpp_name}: is_flag requires native enums")
+
         ctxlist.append(
             EnumContext(
                 scope_var=scope_var,
@@ -654,6 +662,8 @@ class AutowrapVisitor:
                     enum.doxygen, enum_data, declaration=full_cpp_name
                 ),
                 arithmetic=enum_data.arithmetic,
+                native=native,
+                is_flag=enum_data.is_flag,
                 inline_code=enum_data.inline_code,
             )
         )

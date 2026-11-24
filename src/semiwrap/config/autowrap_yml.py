@@ -367,6 +367,12 @@ class EnumData:
     #: negation, etc.
     arithmetic: bool = False
 
+    #: Use a Python stdlib enum (inherits YAML/project default when omitted).
+    native: Optional[bool] = None
+
+    #: Use enum.Flag or enum.IntFlag. Requires native enums.
+    is_flag: bool = False
+
 
 @dataclasses.dataclass(frozen=True)
 class ClassData:
@@ -586,6 +592,9 @@ class Defaults:
 
     #: If True, Python arguments with defaults are keyword-only
     default_args_as_kw_only: bool = False
+
+    #: Default backend for named enums; omitted inherits the project default.
+    enum_native: Optional[bool] = None
 
 
 @dataclasses.dataclass(frozen=True)

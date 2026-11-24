@@ -9,6 +9,7 @@ from .context import (
     FunctionContext,
     TrampolineData,
 )
+from .render_cls_prologue import class_has_native_enum
 from .mangle import trampoline_signature
 from .namespace_utils import generated_qualname, namespace_scope
 
@@ -42,6 +43,8 @@ def render_cls_trampoline_hpp(ctx: HeaderContext, cls: ClassContext) -> str:
         "#pragma once\n"
         "#include <semiwrap.h>"
     )
+    if class_has_native_enum(cls):
+        r.writeln("#include <pybind11/native_enum.h>")
 
     if ctx.extra_includes_first:
         r.writeln("\n// from extra_includes_first")

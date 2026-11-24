@@ -55,6 +55,7 @@ def generate_wrapper(
     name_transform_parameter: typing.Optional[str],
     name_transform_known_words: typing.List[str],
     warn_on_missing_header: bool = True,
+    enum_native: bool = True,
 ):
 
     try:
@@ -120,7 +121,7 @@ def generate_wrapper(
         )
     )
 
-    gendata = GeneratorData(data, src_yml)
+    gendata = GeneratorData(data, src_yml, enum_native=enum_native)
 
     try:
         hctx = parse_header(
@@ -154,6 +155,12 @@ def make_argparser() -> argparse.ArgumentParser:
     parser.add_argument("-I", "--include-paths", action="append", default=[])
     parser.add_argument("-D", "--defines", action="append", default=[])
     parser.add_argument("--cpp")
+    parser.add_argument(
+        "--enum-native",
+        choices=[True, False],
+        type=lambda value: {"true": True, "false": False}[value],
+        default=True,
+    )
     parser.add_argument("--name-transform-default")
     parser.add_argument("--name-transform-function")
     parser.add_argument("--name-transform-method")
@@ -222,6 +229,7 @@ def main():
         casters=casters,
         pp_defines=args.defines,
         report_only=report_only,
+        enum_native=args.enum_native,
         warn_on_missing_header=warn_on_missing_header,
         name_transform_default=args.name_transform_default,
         name_transform_function=args.name_transform_function,

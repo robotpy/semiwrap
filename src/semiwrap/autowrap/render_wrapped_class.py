@@ -56,8 +56,6 @@ def render_class_helper(r: RenderBuffer, cls: ClassContext) -> None:
             r.writeln("\nvoid define_enums() {")
             with r.indent():
                 rpybind11.cls_def_enum(r, cls, cls.var_name)
-                for child in cls.child_classes:
-                    rpybind11.cls_def_enum(r, child, child.var_name)
             r.writeln("}")
             r.writeln("\nvoid finish() {")
             with r.indent():

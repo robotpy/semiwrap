@@ -123,10 +123,10 @@ def test_doc_code_overload_can_disable_replacements_with_full_doc():
 def test_doc_code_enum_and_value():
     doc = inspect.getdoc(ft.DocCodeEnum)
     assert "Enum examples." in doc
-    assert "value = DocCodeEnum.Ready" in doc
+    assert "value = DocCodeEnum.Ready" in inspect.getdoc(ft.DocCodeEnum.Ready)
     assert "enum_example = DocCodeEnum.Ready" in doc
     assert "DocCodeEnum::Ready" not in doc
-    assert doc.count(".. code-block:: python") == 2
+    assert doc.count(".. code-block:: python") == 1
     assert ft.DocCodeEnum.Ready.value == 0
 
 
@@ -151,12 +151,6 @@ def test_docstrings_enum():
         """
         An enum that is documented
         Maybe it's not great docs, but it's something.
-
-        Members:
-
-          Value1 : value 1 doc
-        
-          Value2 : value 2 doc??
         """
     )
 
@@ -227,15 +221,6 @@ def test_docstrings_append():
         An enum that is documented
         Maybe it's not great docs, but it's something.
         Useful extra information about this enum
-
-
-        Members:
-
-          Value1 : value 1 doc
-          Useful extra information about this value
-          
-        
-          Value2 : value 2 doc??
         """
     )
 

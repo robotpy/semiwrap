@@ -73,7 +73,18 @@ class GeneratorData:
 
     data: AutowrapConfigYaml
 
-    def __init__(self, data: AutowrapConfigYaml, data_fname: pathlib.Path):
+    def __init__(
+        self,
+        data: AutowrapConfigYaml,
+        data_fname: pathlib.Path,
+        *,
+        enum_native: bool = True,
+    ):
+        self.enum_native = (
+            data.defaults.enum_native
+            if data.defaults.enum_native is not None
+            else enum_native
+        )
         self.data = data
         self.data_fname = data_fname
 

@@ -1,5 +1,11 @@
 from .buffer import RenderBuffer
-from .context import HeaderContext
+from .context import ClassContext, HeaderContext
+
+
+def class_has_native_enum(cls: ClassContext) -> bool:
+    return any(enum.native for enum in cls.enums) or any(
+        class_has_native_enum(child) for child in cls.child_classes
+    )
 
 
 def render_class_prologue(r: RenderBuffer, hctx: HeaderContext):
@@ -9,6 +15,11 @@ def render_class_prologue(r: RenderBuffer, hctx: HeaderContext):
         "#include <semiwrap.h>"
     )
     # fmt: on
+
+    if any(enum.native for enum in hctx.enums) or any(
+        class_has_native_enum(cls) for cls in hctx.classes
+    ):
+        r.writeln("#include <pybind11/native_enum.h>")
 
     if hctx.has_vcheck:
         r.writeln("#include <functional>")

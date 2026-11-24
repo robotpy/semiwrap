@@ -566,7 +566,10 @@ class _BuildPlanner:
                 extension.name_transform,
             )
 
-            header2dat_args: T.List[BuildArg] = []
+            header2dat_args: T.List[BuildArg] = [
+                "--enum-native",
+                str(self.pyproject.project.defaults.enum_native).lower(),
+            ]
             for inc in include_directories_uniq:
                 header2dat_args += ["-I", inc]
 

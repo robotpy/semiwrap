@@ -1,6 +1,27 @@
 
 #pragma once
 
+enum class NativeColor { Red = 1, Blue = 2 };
+enum class NativeNumber { One = 1 };
+enum class NativeFlags { A = 1, B = 2 };
+enum class NativeIntFlags { A = 1, B = 2 };
+template<class T> struct NativeTemplate {
+  struct Inner {
+    enum class Color { Red = 1 };
+    struct Deep { enum class Color { Blue = 2 }; };
+  };
+  enum class Color { Red = 1 };
+  static Color echo(Color value = Color::Red) { return value; }
+};
+struct NativeContainer {
+  struct Inner {
+    enum class Color { Red = 1 };
+    struct Deep { enum class Color { Blue = 2 }; };
+  };
+  enum class Color { Red = 1, Blue = 2 };
+  static Color echo(Color value = Color::Red) { return value; }
+};
+
 // unnamed enum at global scope not supported yet
 // enum { UGEX = 7 };
 

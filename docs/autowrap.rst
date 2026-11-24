@@ -12,6 +12,67 @@ and objects found in that header.
           to parse headers. It can handle common and complex C++ syntax, but
           if you run into problems please file a bug on github.
 
+Enum backends
+-------------
+
+Named enums use Python's standard-library ``enum.Enum`` by default. Set
+``arithmetic: true`` for ``enum.IntEnum``, ``is_flag: true`` for ``enum.Flag``,
+or both for ``enum.IntFlag``. Ordinary native enum members do not compare equal
+to integers; use their ``.value`` attribute instead. Anonymous enums are unchanged.
+
+To retain legacy pybind11 enums project-wide, use:
+
+.. code-block:: toml
+
+   [tool.semiwrap.defaults]
+   enum_native = false
+
+A YAML file can override this default, and individual enums override both:
+
+.. code-block:: yaml
+
+   defaults:
+     enum_native: true
+   enums:
+     Legacy:
+       native: false
+     Options:
+       is_flag: true
+       arithmetic: true
+
+These rules also apply to class-nested enums. Precedence is per-enum ``native``,
+YAML ``defaults.enum_native``, project default, then ``true``. Legacy enums retain
+existing ``arithmetic`` behavior, but cannot use ``is_flag: true``.
+
+Enum ``inline_code`` remains supported. Native builders accept additional
+``.value(...)`` calls and ``.export_values()``; semiwrap finalizes them automatically
+after the inline code. Do not call ``.finalize()`` yourself. Legacy ``.def(...)``
+customizations require ``native: false`` because native builders do not support
+that API. Native member docstrings live on the individual members rather than
+being appended to the enum class docstring.
+
+To add methods to a native enum, retrieve its Python type after finalization
+and assign a ``py::cpp_function`` with ``py::is_method``. Use the header-level
+``inline_code`` (which runs after enum finalization), not the enum-level
+``inline_code``:
+
+.. code-block:: yaml
+
+   enums:
+     Foo:
+       native: true
+   inline_code: |
+     auto foo = m.attr("Foo");
+     foo.attr("a_method") = py::cpp_function(
+         [](Foo self) { return static_cast<int>(self) + 10; },
+         py::name("a_method"), py::is_method(foo));
+
+Python callers can then use ``Foo.SomeValue.a_method()``. ``enum_Foo`` is the
+C++ native enum builder, not the Python type, so it does not provide ``.attr()``.
+For nested enums, retrieve the type from its containing Python class (for
+example, ``m.attr("Container").attr("Foo")``); for subpackages, retrieve it
+from the appropriate submodule instead.
+
 C++ Features
 ------------
 

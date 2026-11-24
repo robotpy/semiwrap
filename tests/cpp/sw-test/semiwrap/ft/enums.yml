@@ -1,9 +1,31 @@
+# Existing fixtures deliberately exercise legacy enum semantics.
+defaults:
+  enum_native: false
 inline_code_namespace: ""
 inline_code: |
+  auto native_color = m.attr("NativeColor");
+  native_color.attr("a_method") = py::cpp_function(
+      [](NativeColor value) { return int(value) + 10; },
+      py::name("a_method"), py::is_method(native_color));
   enum_GEnum.def("custom_value", [](GEnum value) { return int(value) + 10; });
   enum_NSGCEnum.def("custom_value", [](enum_ns::NSGCEnum value) { return int(value) + 10; });
 
 enums:
+  NativeColor:
+    native: true
+    inline_code: |
+      .value("Alias", NativeColor::Red)
+      .export_values()
+  NativeNumber:
+    native: true
+    arithmetic: true
+  NativeFlags:
+    native: true
+    is_flag: true
+  NativeIntFlags:
+    native: true
+    arithmetic: true
+    is_flag: true
   StripPrefixEnum:
     value_prefix: STRIP_
   GEnumMath:
@@ -13,7 +35,44 @@ enums:
   GCEnum:
   NSGEnum:
   NSGCEnum:
+templates:
+  NativeTemplateInt:
+    qualname: NativeTemplate
+    params: [int]
 classes:
+  NativeTemplate::Inner:
+    enums:
+      Color:
+        native: true
+  NativeTemplate::Inner::Deep:
+    enums:
+      Color:
+        native: true
+  NativeContainer::Inner:
+    enums:
+      Color:
+        native: true
+  NativeContainer::Inner::Deep:
+    enums:
+      Color:
+        native: true
+  NativeTemplate:
+    template_params: [T]
+    enums:
+      Color:
+        native: true
+    methods:
+      echo:
+  NativeContainer:
+    enums:
+      Color:
+        native: true
+        inline_code: |
+          .value("Alias", NativeContainer::Color::Red)
+          .export_values();
+          m.attr("native_inline_ran") = py::bool_(true)
+    methods:
+      echo:
   EnumContainer:
     enums:
       InnerEnum:

@@ -15,7 +15,7 @@ def _get_classes(hctx: HeaderContext):
     def _get_child_classes(c: ClassContext):
         for c in c.child_classes:
             yield c
-            _get_child_classes(c)
+            yield from _get_child_classes(c)
 
     for cls in hctx.classes:
         yield cls
