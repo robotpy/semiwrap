@@ -36,7 +36,9 @@ def test_inline_code_requires_namespace_for_multiple_targets():
 def _render_enums(tmp_path, hname, source):
     header = tmp_path / f"{hname}.h"
     header.write_text(source)
-    config = AutowrapConfigYaml(enums={"FieldId": EnumData(rename="Field")})
+    config = AutowrapConfigYaml(
+        enums={"FieldId": EnumData(rename="Field", native=False)}
+    )
     hctx = parse_header(
         hname,
         header,

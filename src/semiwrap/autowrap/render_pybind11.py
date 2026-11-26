@@ -315,13 +315,20 @@ def _genprop_impl(r: RenderBuffer, varname: str, qualname: str, prop: PropContex
 
 
 def enum_decl(r: RenderBuffer, enum: EnumContext, varname: str):
-    r.writeln(f"py::enum_<{ enum.full_cpp_name }> {varname};")
+    builder = "native_enum" if enum.native else "enum_"
+    cpp_type = enum.full_cpp_name
+    if "<" in cpp_type:
+        cpp_type = "typename " + cpp_type
+    r.writeln(f"py::{builder}<{cpp_type}> {varname};")
 
 
 def enum_init_args(scope: str, enum: EnumContext):
     params = [scope, f'"{enum.py_name}"']
 
-    if enum.arithmetic:
+    if enum.native:
+        base = ("Int" if enum.arithmetic else "") + ("Flag" if enum.is_flag else "Enum")
+        params.append(f'"enum.{base}"')
+    elif enum.arithmetic:
         params.append("py::arithmetic()")
 
     if enum.doc:
@@ -338,6 +345,8 @@ def enum_def(r: RenderBuffer, varname: str, enum: EnumContext):
     if enum.inline_code:
         r.write_trim(enum.inline_code)
     r.writeln(";")
+    if enum.native:
+        r.writeln(f"{varname}.finalize();")
 
 
 def cls_user_using(r: RenderBuffer, cls: ClassContext):
@@ -442,7 +451,12 @@ def cls_def_enum(r: RenderBuffer, cctx: ClassContext, varname: str):
     for idx, enum in enumerate(cctx.enums, start=1):
         r.writeln(f"{cctx.var_name}_enum{idx}")
         with r.indent():
-            enum_def(r, cctx.var_name, enum)
+            enum_def(r, f"{cctx.var_name}_enum{idx}", enum)
+
+    # Match cls_decl/cls_init: template children have their own binding helper.
+    for child in cctx.child_classes:
+        if not child.template:
+            cls_def_enum(r, child, child.var_name)
 
 
 def _genrepr(r: RenderBuffer, cls: ClassContext, varname: str):

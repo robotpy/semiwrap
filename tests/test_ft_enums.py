@@ -2,6 +2,36 @@ from swtest import ft
 import pytest
 
 
+def test_native_enums():
+    import enum
+    from swtest.ft import _ft as ft
+
+    assert ft.NativeColor.__bases__ == (enum.Enum,)
+    assert ft.NativeNumber.__bases__ == (enum.IntEnum,)
+    assert ft.NativeFlags.__bases__ == (enum.Flag,)
+    assert ft.NativeIntFlags.__bases__ == (enum.IntFlag,)
+    assert ft.NativeColor.Red != 1
+    assert ft.NativeNumber.One == 1
+    assert (ft.NativeFlags.A | ft.NativeFlags.B).value == 3
+    assert ft.NativeIntFlags.A | ft.NativeIntFlags.B == 3
+    assert ft.NativeColor.Red.a_method() == 11
+    assert ft.NativeColor.Blue.a_method() == 12
+    assert ft.NativeColor.Alias is ft.NativeColor.Red
+    assert ft.Red is ft.NativeColor.Red
+    cls = ft.NativeContainer
+    assert cls.Color.Alias is cls.Color.Red
+    assert cls.Red is cls.Color.Red
+    assert cls.echo() is cls.Color.Red
+    assert cls.echo(cls.Color.Blue) is cls.Color.Blue
+    assert ft.native_inline_ran is True
+    assert ft.NativeTemplateInt.echo() is ft.NativeTemplateInt.Color.Red
+    for outer in (ft.NativeTemplateInt, ft.NativeContainer):
+        assert outer.Inner.Color.__bases__ == (enum.Enum,)
+        assert outer.Inner.Color.Red.value == 1
+        assert outer.Inner.Deep.Color.__bases__ == (enum.Enum,)
+        assert outer.Inner.Deep.Color.Blue.value == 2
+
+
 def test_enums():
     # normal enums convert to integers
     assert ft.GEnum.GE1 == 1

@@ -268,6 +268,8 @@ def _render_module_stage1(
             {module_name},
             sources: [{m.name}_sources],
             dependencies: [{m.name}_deps],
+            # Template-heavy bindings can exceed the standard COFF section limit.
+            cpp_args: meson.get_compiler('cpp').get_argument_syntax() == 'msvc' ? ['/bigobj'] : [],
             install: true,
             subdir: {subdir},        
         """

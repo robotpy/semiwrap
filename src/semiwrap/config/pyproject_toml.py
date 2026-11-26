@@ -184,6 +184,12 @@ class ExtensionModuleConfig:
 
 
 @dataclasses.dataclass
+class ProjectDefaults:
+    #: Use native Python enums unless overridden by YAML or per-enum settings.
+    enum_native: bool = True
+
+
+@dataclasses.dataclass
 class SemiwrapToolConfig:
     """
     Contains information for configuring the project
@@ -200,6 +206,9 @@ class SemiwrapToolConfig:
     #: and function/method parameters, unless overridden by an extension module
     #: or YAML file.
     name_transform: NameTransformSpec = None
+
+    #: Project-wide generation defaults.
+    defaults: ProjectDefaults = dataclasses.field(default_factory=ProjectDefaults)
 
     #: List of headers for the scan-headers tool to ignore
     scan_headers_ignore: List[str] = dataclasses.field(default_factory=list)

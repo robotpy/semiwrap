@@ -91,6 +91,8 @@ class EnumContext:
 
     arithmetic: bool
     inline_code: typing.Optional[str]
+    native: bool = True
+    is_flag: bool = False
 
 
 class ParamCategory(enum.Enum):
