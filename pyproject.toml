@@ -7,7 +7,7 @@ name = "semiwrap"
 dynamic = ["version"]
 description = "Semi-automated tool to wrap C++ code for use by python"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = "BSD-3-Clause"
 license-files = ["LICENSE.txt", "LICENSE-pybind11.txt"]
 authors = [
@@ -34,7 +34,7 @@ dependencies = [
     "typing-extensions",
     "pyyaml >= 5.1",
     "pybind11-stubgen ~= 2.5.1",
-    "pybind11 ~= 3.0.2",
+    "pybind11 ~= 3.1.0",
 ]
 
 [project.optional-dependencies]

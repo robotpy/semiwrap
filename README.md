@@ -10,7 +10,7 @@ semiwrap includes a hatchling plugin that autogenerates `meson.build` files that
 can be built using meson, and those build files parse your wrapped headers and
 generate/compile pybind11 based wrappers into python extension modules. 
 
-Requires Python 3.8+
+Requires Python 3.9+
 
 Documentation
 -------------

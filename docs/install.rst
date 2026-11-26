@@ -16,7 +16,7 @@ need to use the tooling to develop packages that depend on ``semiwrap``.
 Supported platforms
 -------------------
 
-``semiwrap`` requires a minimum of Python 3.8 to be installed, and should
+``semiwrap`` requires a minimum of Python 3.9 to be installed, and should
 work on Linux, macOS, and Windows. To compile the generated code created by
 ``semiwrap``, you must have a modern C++ compiler that is supported by pybind11.
 
